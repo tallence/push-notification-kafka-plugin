@@ -328,9 +328,9 @@ push_notification_driver_kafka_init (struct push_notification_driver_config *con
         tmp = mail_user_plugin_getenv(user, "kafka_max_retries");
         if (tmp == NULL) {
             kafka_global->max_retries = 0;
-        } else {if (str_to_uint(tmp, &kafka_global->max_retries) < 0 ||
+        } else {if (str_to_int(tmp, &kafka_global->max_retries) < 0 ||
                             kafka_global->max_retries < 0 ) {
-                i_error("%sinit - max_retries Level must be positive");
+                i_error("%sinit - max_retries Level must be positive",LOG_LABEL);
                 kafka_global->max_retries = 0;
             }
         }
