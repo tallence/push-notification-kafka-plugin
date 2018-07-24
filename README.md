@@ -60,7 +60,7 @@ Follow the instructions in [Dovecot's Push Notification Framework](https://wiki.
  To active the Kafka driver an entry `push_notification_driver` has to be added to the Dovecot plugin configuration, specifying the Kafka driver URL.  
 
     push_notification_driver = kafka:topic=dovecot
-    push_notification_driver = kafka:topic=expunge events=MessageExpunge
+    push_notification_driver = kafka:topic=expunge events=FlagsClear,FlagsSet,MessageExpunge
 
 The Kafka driver is able to produce to *one* Cluster of Kafka brokers. You can start multiple driver instances publishing to different topics with different configurations.
 

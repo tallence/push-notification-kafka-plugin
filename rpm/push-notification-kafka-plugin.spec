@@ -1,4 +1,15 @@
-# norootforbuild
+#
+# spec file for package push-notification-kafka-plugin
+#
+# Copyright (c) 2017-2018 Tallence AG and the authors
+#
+# This is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License version 2.1, as published by the Free Software
+# Foundation.  See file COPYING.
+
+%{!?dovecot_devel: %define dovecot_devel dovecot22-devel}
+%{!?librdkafka_version: %define librdkafka_version 0.11.4}
 
 ##############################################################################
 # preamble
@@ -6,18 +17,17 @@
 Summary:       Dovecot push notification driver for Kafka
 Name:          push-notification-kafka-plugin
 Version:       0.0.1
-Release:       1
+Release:	   0%{?dist}
 Group:	       Productivity/Networking/Email/Servers
 License:	   LGPL-2.1
 Source:        %{name}_%{version}-%{release}.tar.gz
 
 %define dovecot_home        /opt/app/dovecot
 
-Requires:      dovecot >= 2.2.21-2.1
-
+BuildRequires: %dovecot_devel
+BuildRequires: librdkafka-devel >= %librdkafka_version
 BuildRequires: gcc automake libtool
-BuildRequires: dovecot-devel >= 2.2.21-2.1
-
+BuildRequires: pkg-config
 BuildRoot:     %{_tmppath}/%{name}-%{version}-build
 
 %description
@@ -44,7 +54,9 @@ export LIBS="-pie"
 export ACLOCAL_DIR="%{dovecot_home}/share/aclocal"
 
 ./autogen.sh
-./configure --prefix=%{dovecot_home}
+%configure \
+	--prefix=%{_prefix} \
+	--with-dovecot=%{_libdir}/dovecot
 %{__make}
 
 
@@ -67,16 +79,21 @@ find %{buildroot}%{dovecot_home}/lib/dovecot/ -type f -name \*.a  -delete
 
 
 ##############################################################################
+# post section
+##############################################################################
+%post
+/sbin/ldconfig
+%postun
+/sbin/ldconfig
+
+
+##############################################################################
 # file list
 ##############################################################################
 %files
 %defattr(-,root,root)
-
-%dir /opt/app/
-%dir %{dovecot_home}/
-%dir %{dovecot_home}/lib/
-%dir %{dovecot_home}/lib/dovecot
-%{dovecot_home}/lib/dovecot/lib90_push_notification_kafka_plugin.so
+%dir %{_libdir}/dovecot
+%{_libdir}/dovecot/lib*.so*
 
 
 ##############################################################################
