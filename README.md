@@ -10,8 +10,7 @@ The code is in a developer tested state, but is NOT production ready. Although t
 
 ## push-notification-kafka
 
-The Dovecot dictionaries are a good candidate to be implemented using the Ceph omap key/value store. They are a building block to enable a Dovecot, which runs exclusively on Ceph. A dictionary implementation based on RADOS omap key/values is part of the project. A  detailed description of the dictionary plugin can be found on the [corresponding Wiki page](https://github.com/ceph-dovecot/dovecot-ceph-plugin/wiki/RADOS-Dictionary-Plugin).  
-
+The provided driver for [Dovecot's Push Notification Framework](https://wiki.dovecot.org/Plugins/PushNotification) is a thin wrapper around the framework events. They are rendered as JSON data structures and published to a Kafka topic. [librdkafka](https://github.com/edenhill/librdkafka) is used for accessing the Kafka brokers as a producer.
 
 ### Compile and install the Plugins
 
