@@ -68,17 +68,17 @@ The following options can be configured as part of the driver URL:
 * **topic**: The name of the Kafka topic to publish to. The default value is _dovecot_.
 * **events**: The list of push notification events that will be published. The default is all of them:
   * FlagsClear
-	* FlagsSet
-	* MailboxCreate
-	* MailboxDelete
-	* MailboxRename
-	* MailboxSubscribe
-	* MailboxUnsubscribe
-	* MessageAppend
-	* MessageExpunge
-	* MessageNew
-	* MessageRead
-	* MessageTrash
+  * FlagsSet
+  * MailboxCreate
+  * MailboxDelete
+  * MailboxRename
+  * MailboxSubscribe
+  * MailboxUnsubscribe
+  * MessageAppend
+  * MessageExpunge
+  * MessageNew
+  * MessageRead
+  * MessageTrash
 * **keyword_prefix**: If _FlagsClear_ or _FlagsSet_ are active, `send_flags` controls whether changes of IMAP flags like /Seen will be published.
 * **send_flags**: If _FlagsClear_ or _FlagsSet_ are active, `send_flags` controls whether changes of IMAP flags like /Seen will be published. The default value is `on`
   * `on`: publish flag changes
