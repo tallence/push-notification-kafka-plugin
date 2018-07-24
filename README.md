@@ -109,7 +109,7 @@ plugin {
 
 ### Event Serialization
 
-The events are serialized as JSO data structures. The invariant prefix is
+The events are serialized as JSON data structures. The invariant prefix is
 * user
 * mailbox
 * event
