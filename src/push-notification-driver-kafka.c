@@ -9,6 +9,7 @@
  * Foundation.  See file COPYING.
  */
 
+#include <time.h>
 #include <librdkafka/rdkafka.h>
 
 #include "lib.h"
@@ -16,6 +17,7 @@
 #include "array.h"
 #include "hash.h"
 #include "json-parser.h"
+#include "iso8601-date.h"
 
 #include "push-notification-drivers.h"
 #include "push-notification-events.h"
@@ -25,20 +27,22 @@
 #include "push-notification-event-mailboxrename.h"
 #include "push-notification-event-flagsset.h"
 #include "push-notification-event-flagsclear.h"
-#include "push-notification-event-messageexpunge.h"
+#include "push-notification-event-messagenew.h"
+#include "push-notification-event-messageappend.h"
 
 extern struct push_notification_event push_notification_event_mailboxcreate;
 extern struct push_notification_event push_notification_event_mailboxrename;
 extern struct push_notification_event push_notification_event_flagsclear;
 extern struct push_notification_event push_notification_event_flagsset;
+extern struct push_notification_event push_notification_event_messagenew;
+extern struct push_notification_event push_notification_event_messageappend;
 
 #define LOG_LABEL "Kafka Push Notification: "
 
 #define DEFAULT_TOPIC "dovecot"
-#define DEFAULT_SERVERS "localhost"
+#define DEFAULT_SERVERS "localhost:9092"
 #define DEFAULT_PREFIX "$"
 #define DEFAULT_EVENTS "FlagsClear,FlagsSet,MailboxCreate,MailboxDelete,MailboxRename,MailboxSubscribe,MailboxUnsubscribe,MessageAppend,MessageExpunge,MessageNew,MessageRead,MessageTrash"
-#define DEFAULT_FEATURE_NAME "push_notification_kafka"
 #define DEFAULT_DEBUG ""
 
 /* This is data that is shared by all plugin users. */
@@ -91,30 +95,19 @@ str_starts_with (const char * str, const char * prefix);
  * The callback is triggered from rd_kafka_poll() and executes on
  * the application's thread.
  */
-void
+static void
 push_notification_driver_kafka_msg_cb (rd_kafka_t *rk ATTR_UNUSED, const rd_kafka_message_t *rkmessage, void *opaque ATTR_UNUSED) {
-    i_debug ("%smsg_cb: called", LOG_LABEL);
-
     if (rkmessage->err) {
-        i_error ("%smsg_cb: message delivery failed: %s", LOG_LABEL, rd_kafka_err2str (rkmessage->err));}
-    else {
+        i_error ("%smsg_cb: message delivery failed: %s", LOG_LABEL, rd_kafka_err2str (rkmessage->err));
+    } else {
         i_debug ("%smsg_cb: message delivered (%zd bytes, partition %"PRId32")", LOG_LABEL, rkmessage->len, rkmessage->partition);
     }
-
-    if (rkmessage->err)
-    fprintf(stderr, "%% Message delivery failed: %s\n",
-                    rd_kafka_err2str(rkmessage->err));
-    else
-    fprintf(stderr,
-                    "%% Message delivered (%zd bytes, "
-                    "partition %"PRId32")\n",
-                    rkmessage->len, rkmessage->partition);
 
     /* The rkmessage is destroyed automatically by librdkafka */
 }
 
-void
-push_notification_driver_kafka_err_cb (rd_kafka_t *rk, int err, const char *reason, void *opaque) {
+static void
+push_notification_driver_kafka_err_cb (rd_kafka_t *rk, int err, const char *reason, void *opaque ATTR_UNUSED) {
     i_error ("%serr_cb: %s: %s: %s", LOG_LABEL, rd_kafka_name (rk), rd_kafka_err2str (err), reason);
 }
 
@@ -220,15 +213,15 @@ push_notification_driver_kafka_deinit_topic (struct push_notification_driver_kaf
 }
 
 static void
-push_notification_driver_kafka_send_to_kafka (struct push_notification_driver_kafka_context* ctx, string_t* str) {
+push_notification_driver_kafka_send_to_kafka (struct push_notification_driver_kafka_context* ctx, string_t* str, const char *username) {
     push_notification_driver_kafka_init_topic (ctx);
 
-    i_assert (str != NULL);
+    i_assert(str != NULL);
 
     if (ctx->rkt != NULL) {
         int retry_counter = 0;
 
-        retry: if (rd_kafka_produce (ctx->rkt, RD_KAFKA_PARTITION_UA, RD_KAFKA_MSG_F_COPY, (void *) str_c (str), str_len (str), NULL, 0, NULL) == -1) {
+        retry: if (rd_kafka_produce (ctx->rkt, RD_KAFKA_PARTITION_UA, RD_KAFKA_MSG_F_COPY, (void *) str_c (str), str_len (str), username, strlen (username), NULL) == -1) {
             /* Failed to *enqueue* message for producing. */
             i_error ("%ssend_to_kafka - failed to produce to topic=%s: %s", LOG_LABEL, ctx->topic, rd_kafka_err2str (rd_kafka_last_error ()));
 
@@ -251,7 +244,7 @@ push_notification_driver_kafka_send_to_kafka (struct push_notification_driver_ka
             }
         }
 
-        i_debug ("%ssend_to_kafka - send %zu bytes to topic=%s", LOG_LABEL, str_len (str), ctx->topic);
+        i_debug ("%ssend_to_kafka - send %zu bytes to topic=%s with key=%s", LOG_LABEL, str_len (str), ctx->topic, username);
 
         /* Keep Kafka happy. */
         rd_kafka_poll (kafka_global->rk, 0/*non-blocking*/);
@@ -286,12 +279,11 @@ push_notification_driver_kafka_init (struct push_notification_driver_config *con
     }
 
     const char *feature = hash_table_lookup(config->config, (const char * ) "feature");
-    if (tmp == NULL) {
-        feature = DEFAULT_FEATURE_NAME;
+    ctx->enabled = TRUE;
+    if (tmp != NULL) {
+        tmp = mail_user_plugin_getenv (user, feature);
+        ctx->enabled = (tmp != NULL && strcasecmp (tmp, "on") == 0);
     }
-    tmp = mail_user_plugin_getenv (user, feature);
-    ctx->enabled = (tmp != NULL && strcasecmp (tmp, "on") == 0);
-
     const char *events = hash_table_lookup(config->config, (const char * ) "events");
     if (events == NULL) {
         events = DEFAULT_EVENTS;
@@ -325,20 +317,45 @@ push_notification_driver_kafka_init (struct push_notification_driver_config *con
             kafka_global->debug = i_strdup (tmp);
         }
 
-        tmp = mail_user_plugin_getenv(user, "kafka_max_retries");
+        tmp = mail_user_plugin_getenv (user, "kafka_max_retries");
         if (tmp == NULL) {
             kafka_global->max_retries = 0;
-        } else {if (str_to_int(tmp, &kafka_global->max_retries) < 0 ||
-                            kafka_global->max_retries < 0 ) {
-                i_error("%sinit - max_retries Level must be positive",LOG_LABEL);
+        } else {
+            if (str_to_int (tmp, &kafka_global->max_retries) < 0 || kafka_global->max_retries < 0) {
+                i_error ("%sinit - kafka_max_retries must be positive", LOG_LABEL);
                 kafka_global->max_retries = 0;
             }
         }
 
-        kafka_global->max_retries = 0;
-        kafka_global->retry_poll_time_in_ms = 500;
-        kafka_global->flush_time_in_ms = 1000;
-        kafka_global->destroy_time_in_ms = 1000;
+        tmp = mail_user_plugin_getenv (user, "kafka_retry_poll_time_in_ms");
+        if (tmp == NULL) {
+            kafka_global->retry_poll_time_in_ms = 500;
+        } else {
+            if (str_to_int (tmp, &kafka_global->retry_poll_time_in_ms) < 0 || kafka_global->retry_poll_time_in_ms < 0) {
+                i_error ("%sinit - kafka_retry_poll_time_in_ms must be positive", LOG_LABEL);
+                kafka_global->retry_poll_time_in_ms = 500;
+            }
+        }
+
+        tmp = mail_user_plugin_getenv (user, "kafka_flush_time_in_ms");
+        if (tmp == NULL) {
+            kafka_global->flush_time_in_ms = 1000;
+        } else {
+            if (str_to_int (tmp, &kafka_global->flush_time_in_ms) < 0 || kafka_global->flush_time_in_ms < 0) {
+                i_error ("%sinit - kafka_flush_time_in_ms must be positive", LOG_LABEL);
+                kafka_global->flush_time_in_ms = 1000;
+            }
+        }
+
+        tmp = mail_user_plugin_getenv (user, "kafka_destroy_time_in_ms");
+        if (tmp == NULL) {
+            kafka_global->destroy_time_in_ms = 1000;
+        } else {
+            if (str_to_int (tmp, &kafka_global->destroy_time_in_ms) < 0 || kafka_global->destroy_time_in_ms < 0) {
+                i_error ("%sinit - kafka_destroy_time_in_ms must be positive", LOG_LABEL);
+                kafka_global->destroy_time_in_ms = 1000;
+            }
+        }
     }
 
     ++kafka_global->refcount;
@@ -354,6 +371,8 @@ push_notification_driver_kafka_begin_txn (struct push_notification_driver_txn *d
     struct push_notification_driver_kafka_context *ctx = (struct push_notification_driver_kafka_context *) dtxn->duser->context;
     struct mail_user *user = dtxn->ptxn->muser;
 
+    mail_user_ref (user);
+
     if (ctx->enabled) {
         /* if enabled, subscribe configured events. */
 
@@ -361,7 +380,15 @@ push_notification_driver_kafka_begin_txn (struct push_notification_driver_txn *d
 
         char * const *event;
         for (event = ctx->events; *event != NULL; event++) {
-            push_notification_event_init (dtxn, *event, NULL);
+            struct push_notification_event_messagenew_config *config = NULL;
+            if (strcmp (*event, push_notification_event_messagenew.name) == 0) {
+                struct push_notification_event_messagenew_config *config = p_new(dtxn->ptxn->pool, struct push_notification_event_messagenew_config, 1);
+                config->flags = PUSH_NOTIFICATION_MESSAGE_HDR_FROM | PUSH_NOTIFICATION_MESSAGE_HDR_SUBJECT | PUSH_NOTIFICATION_MESSAGE_HDR_SUBJECT | PUSH_NOTIFICATION_MESSAGE_HDR_DATE | PUSH_NOTIFICATION_MESSAGE_BODY_SNIPPET;
+            } else if (strcmp (*event, push_notification_event_messageappend.name) == 0) {
+                struct push_notification_event_messageappend_config *config = p_new(dtxn->ptxn->pool, struct push_notification_event_messageappend_config, 1);
+                config->flags = PUSH_NOTIFICATION_MESSAGE_HDR_FROM | PUSH_NOTIFICATION_MESSAGE_HDR_SUBJECT | PUSH_NOTIFICATION_MESSAGE_HDR_SUBJECT | PUSH_NOTIFICATION_MESSAGE_BODY_SNIPPET;
+            }
+            push_notification_event_init (dtxn, *event, config);
         }
 
         return TRUE;
@@ -377,9 +404,8 @@ push_notification_driver_kafka_process_mbox (struct push_notification_driver_txn
     struct mail_user *user = dtxn->ptxn->muser;
     struct push_notification_txn_event * const *event;
 
-    if (array_is_created (&mbox->eventdata)) {
+    if (array_is_created(&mbox->eventdata)) {
         push_notification_driver_debug (LOG_LABEL, user, "process_mbox - user=%s, mailbox=%s", user->username, mbox->mailbox);
-
         array_foreach (&mbox->eventdata, event)
         {
             const char * event_name = (*event)->event->event->name;
@@ -404,7 +430,7 @@ push_notification_driver_kafka_process_mbox (struct push_notification_driver_txn
 
             push_notification_driver_debug (LOG_LABEL, user, "process_mbox - sending notification to Kafka: %s", str_c (str));
 
-            push_notification_driver_kafka_send_to_kafka (ctx, str);
+            push_notification_driver_kafka_send_to_kafka (ctx, str, user->username);
 
             str_free (&str);
         }
@@ -413,85 +439,193 @@ push_notification_driver_kafka_process_mbox (struct push_notification_driver_txn
     }
 }
 
-static string_t *
-build_flags_event (struct push_notification_driver_txn *dtxn, const char *event_name, struct push_notification_txn_msg *msg, enum mail_flags flags, ARRAY_TYPE(keywords) *keywords) {
-    struct push_notification_driver_kafka_context *ctx = (struct push_notification_driver_kafka_context *) dtxn->duser->context;
-    struct mail_user *user = dtxn->ptxn->muser;
-    string_t *str = str_new (dtxn->ptxn->pool, 512);
+static bool
+write_flags (enum mail_flags flags, string_t* str) {
+    bool flag_written = FALSE;
 
+    if ((flags & MAIL_ANSWERED) != 0) {
+        str_append (str, "\"\\\\Answered\"");
+        flag_written = TRUE;
+    }
+    if ((flags & MAIL_FLAGGED) != 0) {
+        if (flag_written) {
+            str_append (str, ",");
+        }
+        str_append (str, "\"\\\\Flagged\"");
+        flag_written = TRUE;
+    }
+    if ((flags & MAIL_DELETED) != 0) {
+        if (flag_written) {
+            str_append (str, ",");
+        }
+        str_append (str, "\"\\\\Deleted\"");
+        flag_written = TRUE;
+    }
+    if ((flags & MAIL_SEEN) != 0) {
+        if (flag_written) {
+            str_append (str, ",");
+        }
+        str_append (str, "\"\\\\Seen\"");
+        flag_written = TRUE;
+    }
+    if ((flags & MAIL_DRAFT) != 0) {
+        if (flag_written) {
+            str_append (str, ",");
+        }
+        str_append (str, "\"\\\\Draft\"");
+        flag_written = TRUE;
+    }
+    return flag_written;
+}
+
+static string_t*
+write_msg_prefix (struct push_notification_driver_txn* dtxn, const char* event_name, struct push_notification_txn_msg* msg) {
+    string_t* str = str_new (dtxn->ptxn->pool, 512);
     str_append (str, "{\"user\":\"");
-    json_append_escaped (str, user->username);
+    json_append_escaped (str, dtxn->ptxn->muser->username);
     str_append (str, "\",\"mailbox\":\"");
     json_append_escaped (str, msg->mailbox);
     str_printfa (str, "\",\"event\":\"%s\",\"uidvalidity\":%u,\"uid\":%u", event_name, msg->uid_validity, msg->uid);
+    return str;
+}
+
+static string_t *
+write_flags_event (struct push_notification_driver_txn *dtxn, const char *event_name, struct push_notification_txn_msg *msg, enum mail_flags flags, ARRAY_TYPE(keywords) *keywords, enum mail_flags flags_old, ARRAY_TYPE(keywords) *keywords_old) {
+    struct push_notification_driver_kafka_context *ctx = (struct push_notification_driver_kafka_context *) dtxn->duser->context;
+
+    string_t * str = write_msg_prefix (dtxn, event_name, msg);
 
     bool flag_written = FALSE;
-    if (ctx->send_flags) {
+    if (ctx->send_flags && flags > 0) {
         str_append (str, ",\"flags\":[");
-
-        if ((flags & MAIL_ANSWERED) != 0) {
-            str_append (str, "\"\\\\Answered\"");
-            flag_written = TRUE;
-        }
-        if ((flags & MAIL_FLAGGED) != 0) {
-            if (flag_written) {
-                str_append (str, ",");
-            }
-            str_append (str, "\"\\\\Flagged\"");
-            flag_written = TRUE;
-        }
-        if ((flags & MAIL_DELETED) != 0) {
-            if (flag_written) {
-                str_append (str, ",");
-            }
-            str_append (str, "\"\\\\Deleted\"");
-            flag_written = TRUE;
-        }
-        if ((flags & MAIL_SEEN) != 0) {
-            if (flag_written) {
-                str_append (str, ",");
-            }
-            str_append (str, "\"\\\\Seen\"");
-            flag_written = TRUE;
-        }
-        if ((flags & MAIL_DRAFT) != 0) {
-            if (flag_written) {
-                str_append (str, ",");
-            }
-            str_append (str, "\"\\\\Draft\"");
-            flag_written = TRUE;
-        }
-
+        flag_written |= write_flags (flags, str);
         str_append (str, "]");
     }
 
-    str_append (str, ",\"keywords\":[");
+    if (ctx->send_flags && flags_old > 0) {
+        str_append (str, ",\"oldFlags\":[");
+        flag_written |= write_flags (flags_old, str);
+        str_append (str, "]");
+    }
 
     bool keyword_written = FALSE;
     const char * const *keyword;
     int i = 0;
-    array_foreach(keywords, keyword)
-    {
-        if (str_starts_with (*keyword, ctx->keyword_prefix)) {
-            if (i > 0) {
-                str_append (str, ",\"");
-            } else {
+    if (keywords != NULL && array_is_created(keywords) && array_not_empty(keywords)) {
+        str_append (str, ",\"keywords\":[");
+        array_foreach(keywords, keyword)
+        {
+            if (str_starts_with (*keyword, ctx->keyword_prefix)) {
+                if (i > 0) {
+                    str_append (str, ",\"");
+                } else {
+                    str_append (str, "\"");
+                }
+                json_append_escaped (str, *keyword);
                 str_append (str, "\"");
+                i++;
+                keyword_written |= TRUE;
             }
-            json_append_escaped (str, *keyword);
-            str_append (str, "\"");
-            i++;
-            keyword_written |= TRUE;
         }
+        str_append (str, "]");
     }
-    str_append (str, "]");
+
+    if (keywords_old != NULL && array_is_created(keywords_old) && array_not_empty(keywords_old)) {
+        str_append (str, ",\"oldKeywords\":[");
+        array_foreach(keywords_old, keyword)
+        {
+            i_debug ("%swrite_flags_event keyword=%s", LOG_LABEL, *keyword);
+            if (str_starts_with (*keyword, ctx->keyword_prefix)) {
+                if (i > 0) {
+                    str_append (str, ",\"");
+                } else {
+                    str_append (str, "\"");
+                }
+                json_append_escaped (str, *keyword);
+                str_append (str, "\"");
+                i++;
+                keyword_written |= TRUE;
+            }
+        }
+        str_append (str, "]");
+    }
+
+    str_append (str, "}");
 
     if (flag_written || keyword_written) {
-        // nothing written, send no event
         return str;
     }
 
+    // nothing written, send no event
+
     return NULL;
+}
+
+static string_t *
+write_event_messagenew (struct push_notification_driver_txn *dtxn, struct push_notification_txn_msg *msg, struct push_notification_txn_event * const *event) {
+    struct push_notification_event_messagenew_data *data = (*event)->data;
+    string_t * str = write_msg_prefix (dtxn, (*event)->event->event->name, msg);
+
+    if (data->date != -1) {
+        struct tm *tm = gmtime (&data->date);
+        str_printfa (str, "\",\"date\":\"%s\"", iso8601_date_create_tm (tm, data->date_tz));
+    }
+
+    if (data->from != NULL) {
+        str_append (str, "\",\"from\":\"");
+        json_append_escaped (str, data->from);
+        str_append (str, "\"");
+    }
+
+    if (data->snippet != NULL) {
+        str_append (str, "\",\"snippet\":\"");
+        json_append_escaped (str, data->snippet);
+        str_append (str, "\"");
+    }
+
+    if (data->subject != NULL) {
+        str_append (str, "\",\"subject\":\"");
+        json_append_escaped (str, data->subject);
+        str_append (str, "\"");
+    }
+
+    if (data->to != NULL) {
+        str_append (str, "\",\"to\":\"");
+        json_append_escaped (str, data->to);
+        str_append (str, "\"");
+    }
+    return str;
+}
+
+static string_t *
+write_event_messageappend (struct push_notification_driver_txn *dtxn, struct push_notification_txn_msg *msg, struct push_notification_txn_event * const *event) {
+    struct push_notification_event_messagenew_data *data = (*event)->data;
+    string_t * str = write_msg_prefix (dtxn, (*event)->event->event->name, msg);
+
+    if (data->from != NULL) {
+        str_append (str, "\",\"from\":\"");
+        json_append_escaped (str, data->from);
+        str_append (str, "\"");
+    }
+
+    if (data->snippet != NULL) {
+        str_append (str, "\",\"snippet\":\"");
+        json_append_escaped (str, data->snippet);
+        str_append (str, "\"");
+    }
+
+    if (data->subject != NULL) {
+        str_append (str, "\",\"subject\":\"");
+        json_append_escaped (str, data->subject);
+        str_append (str, "\"");
+    }
+
+    if (data->to != NULL) {
+        str_append (str, "\",\"to\":\"");
+        json_append_escaped (str, data->to);
+        str_append (str, "\"");
+    }
+    return str;
 }
 
 static void
@@ -499,43 +633,48 @@ push_notification_driver_kafka_process_msg (struct push_notification_driver_txn 
     struct push_notification_driver_kafka_context *ctx = (struct push_notification_driver_kafka_context *) dtxn->duser->context;
     struct mail_user *user = dtxn->ptxn->muser;
 
-    if (array_is_created (&msg->eventdata)) {
+    if (array_is_created(&msg->eventdata)) {
         struct push_notification_txn_event * const *event;
         push_notification_driver_debug (LOG_LABEL, user, "process_msg - user=%s, mailbox=%s, uid=%u", user->username, msg->mailbox, msg->uid);
 
         array_foreach (&msg->eventdata, event)
         {
             const char * event_name = (*event)->event->event->name;
-            push_notification_driver_debug (LOG_LABEL, user, "process_msg - user=%s, mailbox=%s, uid=%u, event=%s", user->username, msg->mailbox, msg->uid, event_name);
-
             string_t *str = NULL;
+
+            push_notification_driver_debug (LOG_LABEL, user, "process_msg - user=%s, mailbox=%s, uid=%u, event=%s", user->username, msg->mailbox, msg->uid, event_name);
 
             if (strcmp (push_notification_event_flagsset.name, (*event)->event->event->name) == 0) {
                 struct push_notification_event_flagsset_data *data = (*event)->data;
-                str = build_flags_event (dtxn, event_name, msg, data->flags_set, &data->keywords_set);
+                str = write_flags_event (dtxn, event_name, msg, data->flags_set, &data->keywords_set, 0, NULL);
             } else if (strcmp (push_notification_event_flagsclear.name, (*event)->event->event->name) == 0) {
                 struct push_notification_event_flagsclear_data *data = (*event)->data;
-                str = build_flags_event (dtxn, event_name, msg, data->flags_clear, &data->keywords_clear);
+                str = write_flags_event (dtxn, event_name, msg, data->flags_clear, &data->keywords_clear, data->flags_old, &data->keywords_old);
+            } else if (strcmp (push_notification_event_messagenew.name, (*event)->event->event->name) == 0) {
+                str = write_event_messageappend (dtxn, msg, event);
+            } else if (strcmp (push_notification_event_messageappend.name, (*event)->event->event->name) == 0) {
+                str = write_event_messagenew (dtxn, msg, event);
             } else {
-                str = str_new (dtxn->ptxn->pool, 512);
-                str_append (str, "{\"user\":\"");
-                json_append_escaped (str, user->username);
-                str_append (str, "\",\"mailbox\":\"");
-                json_append_escaped (str, msg->mailbox);
-                str_printfa (str, "\",\"event\":\"%s\",\"uidvalidity\":%u,\"uid\":%u}", event_name, msg->uid_validity, msg->uid);
+                str = write_msg_prefix (dtxn, event_name, msg);
+                str_append (str, "}");
             }
 
             if (str != NULL) {
                 push_notification_driver_debug (LOG_LABEL, user, "process_msg - sending notification to Kafka: %s", str_c (str));
-
-                push_notification_driver_kafka_send_to_kafka (ctx, str);
-
+                push_notification_driver_kafka_send_to_kafka (ctx, str, user->username);
                 str_free (&str);
             }
         }
     } else {
         push_notification_driver_debug (LOG_LABEL, user, "process_msg - user=%s, mailbox=%s, uid=%u, no eventdata", user->username, msg->mailbox, msg->uid);
     }
+}
+
+static void
+push_notification_driver_kafka_end_txn (struct push_notification_driver_txn *dtxn, bool success ATTR_UNUSED) {
+    struct mail_user *user = dtxn->ptxn->muser;
+
+    mail_user_unref (&user);
 }
 
 static void
@@ -563,9 +702,9 @@ push_notification_driver_kafka_cleanup (void) {
     if ((kafka_global != NULL) && (kafka_global->refcount <= 0)) {
         push_notification_driver_kafka_deinit_global ();
 
-        i_free (kafka_global->brokers);
-        i_free (kafka_global->debug);
-        i_free_and_null (kafka_global);
+        i_free(kafka_global->brokers);
+        i_free(kafka_global->debug);
+        i_free_and_null(kafka_global);
     }
 }
 
@@ -595,6 +734,7 @@ struct push_notification_driver push_notification_driver_kafka =
             .begin_txn = push_notification_driver_kafka_begin_txn, //
             .process_mbox = push_notification_driver_kafka_process_mbox, //
             .process_msg = push_notification_driver_kafka_process_msg, //
+            .end_txn = push_notification_driver_kafka_end_txn, //
             .deinit = push_notification_driver_kafka_deinit, //
             .cleanup = push_notification_driver_kafka_cleanup } //
     };
