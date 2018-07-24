@@ -6,7 +6,7 @@ This project provides a driver for [Dovecot's Push Notification Framework](https
 
 This project is under active development and not in any kind of release state. Be aware it is possible and very likely that APIs, interfaces and or the data format change at any time before a first release.
 
-The code is in a tested state, but is NOT production ready. Although the code is still flagged as experimental, we encourage users to try it out for non-production clusters and non-critical data sets and report their experience, findings and issues.
+The code is in a developer tested state, but is NOT production ready. Although the code is still flagged as experimental, we encourage users to try it out for non-production clusters and non-critical data sets and report their experience, findings and issues.
 
 ## push-notification-kafka
 
