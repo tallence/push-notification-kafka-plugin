@@ -9,14 +9,12 @@
  * Foundation.  See file COPYING.
  */
 
-#ifndef PUSH_NOTIFICATION_KAFKA_PLUGIN_H
-#define PUSH_NOTIFICATION_KAFKA_PLUGIN_H
+#ifndef SRC_PUSH_NOTIFICATION_KAFKA_PLUGIN_H_
+#define SRC_PUSH_NOTIFICATION_KAFKA_PLUGIN_H_
 
 struct module;
 
-void
-push_notification_kafka_plugin_init (struct module *module);
-void
-push_notification_kafka_plugin_deinit (void);
+void push_notification_kafka_plugin_init(struct module *module);
+void push_notification_kafka_plugin_deinit(void);
 
-#endif /* PUSH_NOTIFICATION_KAFKA_PLUGIN_H */
+#endif  // SRC_PUSH_NOTIFICATION_KAFKA_PLUGIN_H_

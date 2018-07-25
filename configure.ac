@@ -6,7 +6,7 @@
 # License version 2.1, as published by the Free Software
 # Foundation.  See file COPYING.
 
-AC_PREREQ([2.59])
+AC_PREREQ([2.69])
 
 AC_INIT([push-notification-kafka], [0.0.1])
 AC_CONFIG_AUX_DIR([.])
@@ -20,11 +20,12 @@ LT_INIT([shared disable-static pic-only])
 
 AM_MAINTAINER_MODE
 
-AC_DEFINE_UNQUOTED(PUSH_NOTIFICATION_KAFKA_NAME, "$PACKAGE_NAME", 
+AC_DEFINE_UNQUOTED(PUSH_NOTIFICATION_KAFKA_NAME, "$PACKAGE_NAME",
 	[Define to the full name of push-notification-kafka for Dovecot.])
-AC_DEFINE_UNQUOTED(PUSH_NOTIFICATION_KAFKA_VERSION, "$PACKAGE_VERSION", 
+AC_DEFINE_UNQUOTED(PUSH_NOTIFICATION_KAFKA_VERSION, "$PACKAGE_VERSION",
 	[Define to the version of push-notification-kafka for Dovecot.])
 
+AC_CHECK_HEADERS([time.h], [], [], [])
 AC_CHECK_HEADERS([librdkafka/rdkafka.h], [], [AC_MSG_ERROR([cannot build without Kafka support: librdkafka/rdkafka.h not found])], [])
 
 AC_SEARCH_LIBS([rd_kafka_new], [rdkafka], [], [AC_MSG_ERROR([cannot build without Kafka support: librdkafka not found])], [])
@@ -44,7 +45,7 @@ AC_ISC_POSIX
 DC_DOVECOT
 DC_DOVECOT_MODULEDIR
 
-# LIBDOVECOT_INCLUDE="$LIBDOVECOT_INCLUDE $LIBDOVECOT_STORAGE_INCLUDE" 
+# LIBDOVECOT_INCLUDE="$LIBDOVECOT_INCLUDE $LIBDOVECOT_STORAGE_INCLUDE"
 CFLAGS="$DOVECOT_CFLAGS"
 LIBS="$DOVECOT_LIBS"
 AC_SUBST(LIBDOVECOT_INCLUDE)

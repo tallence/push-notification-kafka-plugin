@@ -18,13 +18,10 @@ const char *push_notification_kafka_plugin_version = DOVECOT_ABI_VERSION;
 
 extern struct push_notification_driver push_notification_driver_kafka;
 
-void
-push_notification_kafka_plugin_init (struct module *module ATTR_UNUSED) {
-    push_notification_driver_register (&push_notification_driver_kafka);
+void push_notification_kafka_plugin_init(struct module *module ATTR_UNUSED) {
+  push_notification_driver_register(&push_notification_driver_kafka);
 }
 
-void
-push_notification_kafka_plugin_deinit (void) {
-    push_notification_driver_unregister (&push_notification_driver_kafka);
+void push_notification_kafka_plugin_deinit(void) {
+  push_notification_driver_unregister(&push_notification_driver_kafka);
 }
-
