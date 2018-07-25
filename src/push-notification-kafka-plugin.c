@@ -9,10 +9,10 @@
  * Foundation.  See file COPYING.
  */
 
-#include <push-notification-kafka-plugin.h>
 
 #include "lib.h"
 #include "push-notification-drivers.h"
+#include "push-notification-kafka-plugin.h"
 
 const char *push_notification_kafka_plugin_version = DOVECOT_ABI_VERSION;
 

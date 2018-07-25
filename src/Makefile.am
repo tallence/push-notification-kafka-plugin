@@ -16,7 +16,10 @@ lib90_push_notification_kafka_plugin_la_LIBADD = $(LIBDOVECOT) -lrdkafka
 
 lib90_push_notification_kafka_plugin_la_SOURCES = \
 	push-notification-kafka-plugin.c \
-	push-notification-driver-kafka.c
+	push-notification-kafka-event.c \
+	push-notification-kafka-driver.c
 
 noinst_HEADERS = \
+	push-notification-kafka-event.h \
 	push-notification-kafka-plugin.h 
+	

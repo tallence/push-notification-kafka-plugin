@@ -12,6 +12,8 @@
 #ifndef SRC_PUSH_NOTIFICATION_KAFKA_PLUGIN_H_
 #define SRC_PUSH_NOTIFICATION_KAFKA_PLUGIN_H_
 
+#define LOG_LABEL "Kafka Push Notification: "
+
 struct module;
 
 void push_notification_kafka_plugin_init(struct module *module);
