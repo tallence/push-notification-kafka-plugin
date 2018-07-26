@@ -20,12 +20,12 @@ To compile the plugin you need a configured or installed Dovecot >= 2.2.21.
 
 You can clone from github with
 
-	git clone https://gitlab1.tallence.com/Telekom/push-notification-kafka-plugin.git
+    git clone https://gitlab1.tallence.com/Telekom/push-notification-kafka-plugin.git
 
 The build requires that you have the following software/packages installed:
 
-	  librdkafka-devel version >= 0.11.4
-	  dovecot-devel
+    librdkafka-devel version >= 0.11.4
+    dovecot-devel
 
 #### Dovecot installation in /usr/local
 
@@ -52,7 +52,7 @@ The build requires that you have the following software/packages installed:
 
 Follow the instructions in [Dovecot's Push Notification Framework](https://wiki.dovecot.org/Plugins/PushNotification) description. Add the driver `push_notification_kafka` to the list of mail_plugins:
 
-	mail_plugins = $mail_plugins notify push_notification push_notification_kafka
+    mail_plugins = $mail_plugins notify push_notification push_notification_kafka
 
 #### Plugin Configuration
 
