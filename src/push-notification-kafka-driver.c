@@ -18,6 +18,7 @@
 #include "hash.h"
 #include "json-parser.h"
 #include "iso8601-date.h"
+#include "macros.h"
 
 #include "push-notification-drivers.h"
 #include "push-notification-events.h"
