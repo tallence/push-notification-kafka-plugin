@@ -19,8 +19,13 @@ script:
 - docker exec build sh -c 'cd repo; ./configure --with-dovecot=/usr/local/lib/dovecot --enable-valgrind --enable-debug --enable-maintainer-mode'
 - docker exec build sh -c 'cd repo; make clean install'
 - docker exec build sh -c 'ldconfig'
-- docker exec build sh -c 'cd repo; src/test-kafka-event'
-
+- docker exec build sh -c 'cd repo/src; make check'
+- docker exec build sh -c 'cd /usr/local/src; wget https://www.apache.org/dyn/closer.cgi?path=/kafka/2.0.0/kafka_2.11-2.0.0.tgz'
+- docker exec build sh -c 'cd /usr/local/src; tar -xzf kafka_2.11-2.0.0.tgz'
+- docker exec build sh -d 'cd /usr/local/src/kafka_2.11-2.0.0;bin/zookeeper-server-start.sh config/zookeeper.properties'
+- docker exec build sh -d 'cd /usr/local/src/kafka_2.11-2.0.0;bin/kafka-server-start.sh config/server.properties'
+- docker exec build sh -d 'cd /usr/local/src/kafka_2.11-2.0.0;bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic test'
+- docker exec build sh -c 'cd /usr/local/src/kafka_2.11-2.0.0;bin/kafka-topics.sh --list --zookeeper localhost:2181'
 after_script:
 - docker stop build
 - docker rm build
