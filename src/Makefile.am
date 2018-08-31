@@ -33,7 +33,7 @@ noinst_PROGRAMS = $(test_programs)
 test_kafka_event_CPPFLAGS = $(LIBDOVECOT_INCLUDE)
 test_kafka_event_SOURCES = lib-test/push-notification-kafka-event-test.c lib-test/test-common.c lib-test/test-common.h 
 test_kafka_event_LDFLAGS = -module -avoid-version
-test_kafka_event_LDADD = push-notification-kafka-event.lo $(test_libs) $(LIBDOVECOT) -l15_notify_plugin -l20_push_notification_plugin -l20_notify_status_plugin -ldovecot-storage	
+test_kafka_event_LDADD = push-notification-kafka-event.lo $(test_libs) $(LIBDOVECOT) -l15_notify_plugin -l20_push_notification_plugin -ldovecot-storage	
 test_kafka_event_DEPENDENCIES = $(noinst_LTLIBRARIES) $(test_libs) $(LIBDOVECOT_DEPS)
 
 check: check-am check-test
