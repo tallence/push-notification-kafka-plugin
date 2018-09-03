@@ -29,7 +29,7 @@ static void test_init_driver(void) {
   kafka_global = init_kafka_global();
   kafka_global->rk = NULL;
   kafka_global->flush_time_in_ms = 100;
-  kafka_global->brokers = "localhost:9092";
+  kafka_global->brokers = "kafka:9092";
   push_notification_driver_kafka_init_global();
 
   push_notification_driver_kafka_init_topic(&context);
