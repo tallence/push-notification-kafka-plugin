@@ -21,20 +21,28 @@ lib90_push_notification_kafka_plugin_la_SOURCES = \
 
 noinst_HEADERS = \
 	push-notification-kafka-event.h \
-	push-notification-kafka-plugin.h 
+	push-notification-kafka-plugin.h \
+	push-notification-kafka-driver.h
 	
 test_programs = \
-	test-kafka-event 
+	test-kafka-event \
+	test-kafka-driver
 
 noinst_PROGRAMS = $(test_programs)
 
-#test_libs = \
-#	lib-test/libtest.la 	
+
 test_kafka_event_CPPFLAGS = $(LIBDOVECOT_INCLUDE)
 test_kafka_event_SOURCES = lib-test/push-notification-kafka-event-test.c lib-test/test-common.c lib-test/test-common.h 
 test_kafka_event_LDFLAGS = -module -avoid-version
 test_kafka_event_LDADD = push-notification-kafka-event.lo $(test_libs) $(LIBDOVECOT) -l15_notify_plugin -l20_push_notification_plugin -ldovecot-storage	
 test_kafka_event_DEPENDENCIES = $(noinst_LTLIBRARIES) $(test_libs) $(LIBDOVECOT_DEPS)
+
+
+test_kafka_driver_CPPFLAGS = $(LIBDOVECOT_INCLUDE)
+test_kafka_driver_SOURCES = lib-test/push-notification-kafka-driver-test.c lib-test/test-common.c lib-test/test-common.h push-notification-kafka-driver.h push-notification-kafka-driver.c
+test_kafka_driver_LDFLAGS = -module -avoid-version
+test_kafka_driver_LDADD =  push-notification-kafka-event.lo $(test_libs) $(LIBDOVECOT) -l15_notify_plugin -l20_push_notification_plugin -ldovecot-storage  -lrdkafka	
+test_kafka_driver_DEPENDENCIES = $(noinst_LTLIBRARIES) $(test_libs) $(LIBDOVECOT_DEPS)
 
 check: check-am check-test
 check-test: all-am
