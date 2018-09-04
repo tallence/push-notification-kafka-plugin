@@ -43,6 +43,7 @@ struct push_notification_driver_kafka_global {
 
   /* shutdown timeouts */
   int flush_time_in_ms;
+  int topic_close_time_in_ms;
   int destroy_time_in_ms;
 
   rd_kafka_conf_t *rkc; /* Kafka configuration object */
@@ -61,13 +62,19 @@ struct push_notification_driver_kafka_context {
 
   rd_kafka_topic_t *rkt;
 };
+
+// required for testability: "inject" global configuration
+extern struct push_notification_driver_kafka_global *init_kafka_global();
+
 extern void push_notification_driver_kafka_send_to_kafka(struct push_notification_driver_kafka_context *ctx,
                                                          string_t *str, const char *username);
+
 extern void push_notification_driver_kafka_init_topic(struct push_notification_driver_kafka_context *ctx);
+
 extern void push_notification_driver_kafka_deinit_topic(struct push_notification_driver_kafka_context *ctx);
 
 extern rd_kafka_t *push_notification_driver_kafka_init_global();
+
 extern void push_notification_driver_kafka_deinit_global();
-extern struct push_notification_driver_kafka_global *init_kafka_global();
 
 #endif /* SRC_LIB_TEST_PUSH_NOTIFICATION_KAFKA_DRIVER_H_ */

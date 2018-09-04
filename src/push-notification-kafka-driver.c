@@ -153,7 +153,7 @@ void push_notification_driver_kafka_init_topic(struct push_notification_driver_k
 
 void push_notification_driver_kafka_deinit_topic(struct push_notification_driver_kafka_context *ctx) {
   if (kafka_global->rk != NULL) {
-    rd_kafka_poll(kafka_global->rk, 0 /*non-blocking*/);
+    rd_kafka_poll(kafka_global->rk, kafka_global->topic_close_time_in_ms /*non-blocking*/);
   }
 
   if (ctx->rkt != NULL) {
@@ -303,6 +303,15 @@ static int push_notification_driver_kafka_init(struct push_notification_driver_c
       if (str_to_int(tmp, &kafka_global->flush_time_in_ms) < 0 || kafka_global->flush_time_in_ms < 0) {
         i_error("%sinit - kafka_flush_time_in_ms must be positive", LOG_LABEL);
         kafka_global->flush_time_in_ms = 1000;
+      }
+    }
+    tmp = mail_user_plugin_getenv(user, "kafka_topic_close_time_in_ms");
+    if (tmp == NULL) {
+      kafka_global->topic_close_time_in_ms = 1000;
+    } else {
+      if (str_to_int(tmp, &kafka_global->topic_close_time_in_ms) < 0 || kafka_global->topic_close_time_in_ms < 0) {
+        i_error("%sinit - topic_close_time_in_ms must be positive", LOG_LABEL);
+        kafka_global->topic_close_time_in_ms = 1000;
       }
     }
 
