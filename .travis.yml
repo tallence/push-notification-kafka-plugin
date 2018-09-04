@@ -16,10 +16,10 @@ before_script:
 - docker exec build sh -c 'cd /usr/local/src/dovecot; make install'
 script:
 - docker exec build sh -c 'cd repo; ./autogen.sh'
-- docker exec build sh -c 'cd repo; ./configure --with-dovecot=/usr/local/lib/dovecot --enable-valgrind --enable-debug --enable-maintainer-mode'
+- docker exec build sh -c 'cd repo; ./configure --with-dovecot=/usr/local/lib/dovecot --enable-valgrind=yes --enable-maintainer-mode'
 - docker exec build sh -c 'cd repo; make clean install'
 - docker exec build sh -c 'ldconfig'
-- docker exec build sh -c 'cd repo/src; make check'
+- docker exec build sh -c 'cd repo/; make check'
 after_script:
 - docker stop build
 - docker rm build
