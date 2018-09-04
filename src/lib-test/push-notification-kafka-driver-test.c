@@ -14,10 +14,9 @@
 #include "push-notification-kafka-event.h"
 #include "push-notification-kafka-driver.h"
 #include "test-common.h"
+static char* brokers = "kafka:9092";
 
 static void listen_kafka(const char* topic, int num_msg) {
-  char* brokers = "localhost:9092";
-
   char errstr[512];
   rd_kafka_conf_t* conf;
   rd_kafka_topic_conf_t* topic_conf;
@@ -122,7 +121,7 @@ static void test_init_driver(void) {
   kafka_global = init_kafka_global();
   kafka_global->rk = NULL;
   kafka_global->flush_time_in_ms = 100;
-  kafka_global->brokers = "localhost:9092";
+  kafka_global->brokers = brokers;
   kafka_global->topic_close_time_in_ms = -1;  // wait for all callbacks to finish
   push_notification_driver_kafka_init_global();
 
