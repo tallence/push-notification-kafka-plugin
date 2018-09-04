@@ -80,20 +80,20 @@ static void listen_kafka(const char* topic, int num_msg) {
   int msg_count = 0;
   while (TRUE) {
     rd_kafka_message_t* rkmessage;
-    rkmessage = rd_kafka_consumer_poll(rk, 100);
+    rkmessage = rd_kafka_consumer_poll(rk, 1000);
     if (rkmessage) {
       if (rkmessage->key_len) {
         printf("Key: %.*s\n", (int)rkmessage->key_len, (char*)rkmessage->key);
+        printf("%.*s\n", (int)rkmessage->len, (char*)rkmessage->payload);
+        msg_count++;
       }
-      printf("%.*s\n", (int)rkmessage->len, (char*)rkmessage->payload);
       rd_kafka_message_destroy(rkmessage);
-      msg_count++;
     }
 
-    i++;
-    if (i > num_msg + 20) {
+    if (i >= num_msg + 30) {
       break;
     }
+    i++;
   }
 
   err = rd_kafka_consumer_close(rk);
@@ -120,9 +120,9 @@ static void test_init_driver(void) {
 
   kafka_global = init_kafka_global();
   kafka_global->rk = NULL;
-  kafka_global->flush_time_in_ms = 100;
+  kafka_global->flush_time_in_ms = 1000;
   kafka_global->brokers = brokers;
-  kafka_global->topic_close_time_in_ms = -1;  // wait for all callbacks to finish
+  kafka_global->topic_close_time_in_ms = -1;  // wait for all callbacks to finish in ms
   push_notification_driver_kafka_init_global();
 
   push_notification_driver_kafka_init_topic(&context);
