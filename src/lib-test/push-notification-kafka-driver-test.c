@@ -80,7 +80,7 @@ static void listen_kafka(const char* topic, int num_msg) {
   int msg_count = 0;
   while (TRUE) {
     rd_kafka_message_t* rkmessage;
-    rkmessage = rd_kafka_consumer_poll(rk, 10);
+    rkmessage = rd_kafka_consumer_poll(rk, 100);
     if (rkmessage) {
       if (rkmessage->key_len) {
         printf("Key: %.*s\n", (int)rkmessage->key_len, (char*)rkmessage->key);
@@ -91,7 +91,7 @@ static void listen_kafka(const char* topic, int num_msg) {
     }
 
     i++;
-    if (i > num_msg + 10) {
+    if (i > num_msg + 20) {
       break;
     }
   }
