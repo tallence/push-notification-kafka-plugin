@@ -21,7 +21,7 @@ script:
 - docker exec build sh -c 'ldconfig'
 - docker exec build sh -c 'cd repo/; make check'
 after_script:
-- docker stop build
-- docker rm build
-- docker network rm ceph_network
+- docker stop build kafka
+- docker rm build kafka
+- docker network rm kafka_network
 
