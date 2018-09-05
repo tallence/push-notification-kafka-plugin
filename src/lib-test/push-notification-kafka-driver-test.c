@@ -105,8 +105,6 @@ static int listen_kafka(const char* topic, int num_msg) {
 static void test_init_driver(void) {
   test_begin("test_init_driver");
 
-  struct push_notification_driver_config config;
-  struct mail_user user;
   pool_t pool;
   pool = pool_alloconly_create("auth request handler", 4096);
   struct push_notification_driver_kafka_context context;
@@ -114,7 +112,6 @@ static void test_init_driver(void) {
   int num_messages = 10;
   context.topic = topic;  // will be set to 0 by deinit
   context.rkt = NULL;
-  const char error[255];
 
   kafka_global = init_kafka_global();
   kafka_global->rk = NULL;
@@ -137,7 +134,7 @@ static void test_init_driver(void) {
   push_notification_driver_kafka_deinit_topic(&context);
   test_assert(context.rkt == NULL);
   push_notification_driver_kafka_deinit_global();
-  test_assert(kafka_global.rk == NULL);
+  test_assert(kafka_global->rk == NULL);
   i_free(kafka_global);
   pool_unref(&pool);
 
