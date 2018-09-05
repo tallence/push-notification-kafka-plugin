@@ -69,8 +69,8 @@ rd_kafka_t *push_notification_driver_kafka_init_global() {
      * Create Kafka client configuration place-holder
      */
     kafka_global->rkc = rd_kafka_conf_new();
-    rd_kafka_conf_set_error_cb(kafka_global->rkc, push_notification_driver_kafka_err_cb);
-    rd_kafka_conf_set_dr_msg_cb(kafka_global->rkc, push_notification_driver_kafka_msg_cb);
+    rd_kafka_conf_set_error_cb(kafka_global->rkc, kafka_global->error_cb);
+    rd_kafka_conf_set_dr_msg_cb(kafka_global->rkc, kafka_global->dr_msg_cb);
 
     /* Set bootstrap broker(s) as a comma-separated list of
      * host or host:port (default port 9092).
@@ -139,7 +139,7 @@ void push_notification_driver_kafka_init_topic(struct push_notification_driver_k
        * are long-lived objects that should be reused as much as possible.
        */
       ctx->rkt = rd_kafka_topic_new(kafka_global->rk, ctx->topic, NULL);
-      if (ctx->rkt == NULL) {
+      if (!ctx->rkt) {
         i_error(
             "%sinit_topic - rd_kafka_topic_new() failed to create topic %s "
             "object with %s",
@@ -209,6 +209,8 @@ void push_notification_driver_kafka_send_to_kafka(struct push_notification_drive
 
 struct push_notification_driver_kafka_global *init_kafka_global() {
   kafka_global = i_new(struct push_notification_driver_kafka_global, 1);
+  kafka_global->error_cb = push_notification_driver_kafka_err_cb;
+  kafka_global->dr_msg_cb = push_notification_driver_kafka_msg_cb;
   return kafka_global;
 }
 

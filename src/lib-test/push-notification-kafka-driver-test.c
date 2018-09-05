@@ -102,8 +102,8 @@ static int listen_kafka(const char* topic, int num_msg) {
   return 0;
 }
 
-static void test_init_driver(void) {
-  test_begin("test_init_driver");
+static void test_init_send_deinit_driver(void) {
+  test_begin("test_init_send_deinit_driver");
 
   pool_t pool;
   pool = pool_alloconly_create("auth request handler", 4096);
@@ -138,12 +138,50 @@ static void test_init_driver(void) {
   i_free(kafka_global);
   pool_unref(&pool);
 
-  int ret = listen_kafka(topic, num_messages);
+  int ret = listen_kafka(topic, 10);
   test_assert(ret == 0);
   test_end();
 }
 
+static bool err_cb_called = FALSE;
+static void test_push_notification_driver_kafka_err_cb(rd_kafka_t* rk, int err, const char* reason,
+                                                       void* opaque ATTR_UNUSED) {
+  i_info("%serr_cb_test: %s: %s: %s", LOG_LABEL, rd_kafka_name(rk), rd_kafka_err2str(err), reason);
+  err_cb_called = TRUE;
+}
+
+static void test_init_kafka_not_reachable(void) {
+  test_begin("test_init_kafka_not_reachable");
+
+  pool_t pool;
+  pool = pool_alloconly_create("auth request handler", 4096);
+  struct push_notification_driver_kafka_context context;
+  char* topic = "test09";
+  context.topic = topic;  // will be set to 0 by deinit
+  context.rkt = NULL;
+
+  kafka_global = init_kafka_global();
+  kafka_global->rk = NULL;
+  kafka_global->flush_time_in_ms = 1000;
+  kafka_global->brokers = "kafka_2:9092";       // invalid port! kafka not available.
+  kafka_global->topic_close_time_in_ms = 2000;  // wait for all callbacks to finish in ms
+  kafka_global->error_cb = test_push_notification_driver_kafka_err_cb;
+
+  test_assert(push_notification_driver_kafka_init_global() != NULL);
+  test_assert(kafka_global->rk != NULL);
+  test_assert(kafka_global->rkc != NULL);
+  push_notification_driver_kafka_init_topic(&context);
+
+  // deinit will call rd_kafka_poll to wait for all callbacks,
+  push_notification_driver_kafka_deinit_topic(&context);
+  rd_kafka_destroy(kafka_global->rk);
+  i_free(kafka_global);
+  pool_unref(&pool);
+  test_assert(err_cb_called);
+  test_end();
+}
+
 int main(void) {
-  static void (*test_functions[])(void) = {test_init_driver, NULL};
+  static void (*test_functions[])(void) = {test_init_send_deinit_driver, test_init_kafka_not_reachable, NULL};
   return test_run(test_functions);
 }

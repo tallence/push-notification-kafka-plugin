@@ -46,6 +46,8 @@ struct push_notification_driver_kafka_global {
   int topic_close_time_in_ms;
   int destroy_time_in_ms;
 
+  void (*error_cb)(rd_kafka_t *rk, int err, const char *reason, void *opaque);
+  void (*dr_msg_cb)(rd_kafka_t *rk, const rd_kafka_message_t *rkmessage, void *opaque);
   rd_kafka_conf_t *rkc; /* Kafka configuration object */
   rd_kafka_t *rk;       /* Producer instance handle */
 };
@@ -64,7 +66,7 @@ struct push_notification_driver_kafka_context {
 };
 
 // required for testability: "inject" global configuration
-extern struct push_notification_driver_kafka_global *init_kafka_global();
+extern struct push_notification_driver_kafka_global *init_kafka_global(void);
 
 extern void push_notification_driver_kafka_send_to_kafka(struct push_notification_driver_kafka_context *ctx,
                                                          string_t *str, const char *username);
@@ -73,8 +75,8 @@ extern void push_notification_driver_kafka_init_topic(struct push_notification_d
 
 extern void push_notification_driver_kafka_deinit_topic(struct push_notification_driver_kafka_context *ctx);
 
-extern rd_kafka_t *push_notification_driver_kafka_init_global();
+extern rd_kafka_t *push_notification_driver_kafka_init_global(void);
 
-extern void push_notification_driver_kafka_deinit_global();
+extern void push_notification_driver_kafka_deinit_global(void);
 
 #endif /* SRC_LIB_TEST_PUSH_NOTIFICATION_KAFKA_DRIVER_H_ */
