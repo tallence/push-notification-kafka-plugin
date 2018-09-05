@@ -17,6 +17,7 @@
 #include "hash.h"
 #include "json-parser.h"
 #include "iso8601-date.h"
+#include "macros.h"
 
 #include "push-notification-drivers.h"
 #include "push-notification-events.h"
@@ -32,14 +33,7 @@
 #include "push-notification-kafka-plugin.h"
 #include "push-notification-kafka-event.h"
 
-extern struct push_notification_event push_notification_event_mailboxcreate;
-extern struct push_notification_event push_notification_event_mailboxrename;
-extern struct push_notification_event push_notification_event_flagsclear;
-extern struct push_notification_event push_notification_event_flagsset;
-extern struct push_notification_event push_notification_event_messagenew;
-extern struct push_notification_event push_notification_event_messageappend;
-
-static bool str_starts_with(const char *str, const char *prefix) {
+bool str_starts_with(const char *str, const char *prefix) {
   if (str == NULL || prefix == NULL)
     return FALSE;
 
@@ -66,7 +60,7 @@ string_t *push_notification_driver_kafka_render_mbox(
   json_append_escaped(str, user->username);
   str_append(str, "\",\"mailbox\":\"");
   json_append_escaped(str, mbox->mailbox);
-  str_printfa(str, "\",\"event\":\"%s\"", event_name);
+  str_printfa(str, "\",\"event\":\"%s", event_name);
 
   if (strcmp(push_notification_event_mailboxcreate.name, event_name) == 0) {
     struct push_notification_event_mailboxcreate_data *data = (*event)->data;
@@ -82,9 +76,11 @@ string_t *push_notification_driver_kafka_render_mbox(
   return str;
 }
 
-static bool write_flags(enum mail_flags flags, string_t *str) {
+bool write_flags(enum mail_flags flags, string_t *str) {
   bool flag_written = FALSE;
-
+  if (str == NULL) {
+    return FALSE;
+  }
   if ((flags & MAIL_ANSWERED) != 0) {
     str_append(str, "\"\\\\Answered\"");
     flag_written = TRUE;
@@ -120,8 +116,8 @@ static bool write_flags(enum mail_flags flags, string_t *str) {
   return flag_written;
 }
 
-static string_t *write_msg_prefix(struct push_notification_driver_txn *dtxn, const char *event_name,
-                                  struct push_notification_txn_msg *msg) {
+string_t *write_msg_prefix(struct push_notification_driver_txn *dtxn, const char *event_name,
+                           struct push_notification_txn_msg *msg) {
   string_t *str = str_new(dtxn->ptxn->pool, 512);
   str_append(str, "{\"user\":\"");
   json_append_escaped(str, dtxn->ptxn->muser->username);
@@ -131,11 +127,11 @@ static string_t *write_msg_prefix(struct push_notification_driver_txn *dtxn, con
   return str;
 }
 
-static string_t *write_flags_event(struct push_notification_driver_txn *dtxn,
-                                   struct push_notification_driver_kafka_render_context *render_ctx,
-                                   const char *event_name, struct push_notification_txn_msg *msg, enum mail_flags flags,
-                                   ARRAY_TYPE(keywords) * keywords, enum mail_flags flags_old,
-                                   ARRAY_TYPE(keywords) * keywords_old) {
+string_t *write_flags_event(struct push_notification_driver_txn *dtxn,
+                            struct push_notification_driver_kafka_render_context *render_ctx, const char *event_name,
+                            struct push_notification_txn_msg *msg, enum mail_flags flags,
+                            ARRAY_TYPE(keywords) * keywords, enum mail_flags flags_old,
+                            ARRAY_TYPE(keywords) * keywords_old) {
   string_t *str = write_msg_prefix(dtxn, event_name, msg);
 
   bool flag_written = FALSE;
@@ -171,7 +167,7 @@ static string_t *write_flags_event(struct push_notification_driver_txn *dtxn,
     }
     str_append(str, "]");
   }
-
+  i = 0;
   if (keywords_old != NULL && array_is_created(keywords_old) && array_not_empty(keywords_old)) {
     str_append(str, ",\"oldKeywords\":[");
     array_foreach(keywords_old, keyword) {
@@ -202,72 +198,72 @@ static string_t *write_flags_event(struct push_notification_driver_txn *dtxn,
   return NULL;
 }
 
-static string_t *write_event_messagenew(struct push_notification_driver_txn *dtxn,
-                                        struct push_notification_txn_msg *msg,
-                                        struct push_notification_txn_event *const *event) {
+string_t *write_event_messagenew(struct push_notification_driver_txn *dtxn, struct push_notification_txn_msg *msg,
+                                 struct push_notification_txn_event *const *event) {
   struct push_notification_event_messagenew_data *data = (*event)->data;
   string_t *str = write_msg_prefix(dtxn, (*event)->event->event->name, msg);
 
   if (data->date != -1) {
     struct tm *tm = gmtime(&data->date);
-    str_printfa(str, "\",\"date\":\"%s\"", iso8601_date_create_tm(tm, data->date_tz));
+    str_printfa(str, ",\"date\":\"%s\"", iso8601_date_create_tm(tm, data->date_tz));
   }
 
   if (data->from != NULL) {
-    str_append(str, "\",\"from\":\"");
+    str_append(str, ",\"from\":\"");
     json_append_escaped(str, data->from);
     str_append(str, "\"");
   }
 
   if (data->snippet != NULL) {
-    str_append(str, "\",\"snippet\":\"");
+    str_append(str, ",\"snippet\":\"");
     json_append_escaped(str, data->snippet);
     str_append(str, "\"");
   }
 
   if (data->subject != NULL) {
-    str_append(str, "\",\"subject\":\"");
+    str_append(str, ",\"subject\":\"");
     json_append_escaped(str, data->subject);
     str_append(str, "\"");
   }
 
   if (data->to != NULL) {
-    str_append(str, "\",\"to\":\"");
+    str_append(str, ",\"to\":\"");
     json_append_escaped(str, data->to);
     str_append(str, "\"");
   }
+  str_append(str, "}");
   return str;
 }
 
-static string_t *write_event_messageappend(struct push_notification_driver_txn *dtxn,
-                                           struct push_notification_txn_msg *msg,
-                                           struct push_notification_txn_event *const *event) {
+string_t *write_event_messageappend(struct push_notification_driver_txn *dtxn, struct push_notification_txn_msg *msg,
+                                    struct push_notification_txn_event *const *event) {
   struct push_notification_event_messagenew_data *data = (*event)->data;
   string_t *str = write_msg_prefix(dtxn, (*event)->event->event->name, msg);
 
   if (data->from != NULL) {
-    str_append(str, "\",\"from\":\"");
+    str_append(str, ",\"from\":\"");
     json_append_escaped(str, data->from);
     str_append(str, "\"");
   }
 
   if (data->snippet != NULL) {
-    str_append(str, "\",\"snippet\":\"");
+    str_append(str, ",\"snippet\":\"");
     json_append_escaped(str, data->snippet);
     str_append(str, "\"");
   }
 
   if (data->subject != NULL) {
-    str_append(str, "\",\"subject\":\"");
+    str_append(str, ",\"subject\":\"");
     json_append_escaped(str, data->subject);
     str_append(str, "\"");
   }
 
   if (data->to != NULL) {
-    str_append(str, "\",\"to\":\"");
+    str_append(str, ",\"to\":\"");
     json_append_escaped(str, data->to);
     str_append(str, "\"");
   }
+  str_append(str, "}");
   return str;
 }
 
@@ -287,9 +283,9 @@ string_t *push_notification_driver_kafka_render_msg(struct push_notification_dri
     str = write_flags_event(dtxn, render_ctx, event_name, msg, data->flags_clear, &data->keywords_clear,
                             data->flags_old, &data->keywords_old);
   } else if (strcmp(push_notification_event_messagenew.name, (*event)->event->event->name) == 0) {
-    str = write_event_messageappend(dtxn, msg, event);
-  } else if (strcmp(push_notification_event_messageappend.name, (*event)->event->event->name) == 0) {
     str = write_event_messagenew(dtxn, msg, event);
+  } else if (strcmp(push_notification_event_messageappend.name, (*event)->event->event->name) == 0) {
+    str = write_event_messageappend(dtxn, msg, event);
   } else {
     str = write_msg_prefix(dtxn, event_name, msg);
     str_append(str, "}");

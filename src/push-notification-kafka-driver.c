@@ -18,6 +18,7 @@
 #include "hash.h"
 #include "json-parser.h"
 #include "iso8601-date.h"
+#include "macros.h"
 
 #include "push-notification-drivers.h"
 #include "push-notification-events.h"
@@ -28,52 +29,7 @@
 
 #include "push-notification-kafka-plugin.h"
 #include "push-notification-kafka-event.h"
-
-extern struct push_notification_event push_notification_event_messagenew;
-extern struct push_notification_event push_notification_event_messageappend;
-
-#define LOG_LABEL "Kafka Push Notification: "
-
-#define DEFAULT_TOPIC "dovecot"
-#define DEFAULT_SERVERS "localhost:9092"
-#define DEFAULT_PREFIX "$"
-#define DEFAULT_EVENTS                                                \
-  "FlagsClear,FlagsSet,MailboxCreate,MailboxDelete,MailboxRename,"    \
-  "MailboxSubscribe,MailboxUnsubscribe,MessageAppend,MessageExpunge," \
-  "MessageNew,MessageRead,MessageTrash"
-#define DEFAULT_DEBUG ""
-
-/* This is data that is shared by all plugin users. */
-struct push_notification_driver_kafka_global {
-  int refcount;
-
-  char *brokers;
-  char *debug;
-
-  /* if send message to topic fails, make a some retries */
-  int max_retries;
-  int retry_poll_time_in_ms;
-
-  /* shutdown timeouts */
-  int flush_time_in_ms;
-  int destroy_time_in_ms;
-
-  rd_kafka_conf_t *rkc; /* Kafka configuration object */
-  rd_kafka_t *rk;       /* Producer instance handle */
-};
-static struct push_notification_driver_kafka_global *kafka_global = NULL;
-
-struct push_notification_driver_kafka_context {
-  pool_t pool;
-
-  char *topic;
-  char **events;
-  bool enabled;
-
-  struct push_notification_driver_kafka_render_context render_ctx;
-
-  rd_kafka_topic_t *rkt;
-};
+#include "push-notification-kafka-driver.h"
 
 /* Kafka stuff */
 
@@ -99,13 +55,12 @@ static void push_notification_driver_kafka_msg_cb(rd_kafka_t *rk ATTR_UNUSED, co
 
   /* The rkmessage is destroyed automatically by librdkafka */
 }
-
 static void push_notification_driver_kafka_err_cb(rd_kafka_t *rk, int err, const char *reason,
                                                   void *opaque ATTR_UNUSED) {
   i_error("%serr_cb: %s: %s: %s", LOG_LABEL, rd_kafka_name(rk), rd_kafka_err2str(err), reason);
 }
 
-static rd_kafka_t *push_notification_driver_kafka_init_global() {
+rd_kafka_t *push_notification_driver_kafka_init_global() {
   if (kafka_global->rk == NULL) {
     char errstr[512]; /* librdkafka API error reporting buffer */
 
@@ -114,8 +69,8 @@ static rd_kafka_t *push_notification_driver_kafka_init_global() {
      * Create Kafka client configuration place-holder
      */
     kafka_global->rkc = rd_kafka_conf_new();
-    rd_kafka_conf_set_error_cb(kafka_global->rkc, push_notification_driver_kafka_err_cb);
-    rd_kafka_conf_set_dr_msg_cb(kafka_global->rkc, push_notification_driver_kafka_msg_cb);
+    rd_kafka_conf_set_error_cb(kafka_global->rkc, kafka_global->error_cb);
+    rd_kafka_conf_set_dr_msg_cb(kafka_global->rkc, kafka_global->dr_msg_cb);
 
     /* Set bootstrap broker(s) as a comma-separated list of
      * host or host:port (default port 9092).
@@ -153,7 +108,7 @@ static rd_kafka_t *push_notification_driver_kafka_init_global() {
   return kafka_global->rk;
 }
 
-static void push_notification_driver_kafka_deinit_global() {
+void push_notification_driver_kafka_deinit_global() {
   if (kafka_global->rk != NULL) {
     /* Shutdown Kafka */
 
@@ -173,7 +128,7 @@ static void push_notification_driver_kafka_deinit_global() {
   }
 }
 
-static void push_notification_driver_kafka_init_topic(struct push_notification_driver_kafka_context *ctx) {
+void push_notification_driver_kafka_init_topic(struct push_notification_driver_kafka_context *ctx) {
   if (push_notification_driver_kafka_init_global() != NULL) {
     i_debug("%sinit_topic - initialize topic=%s", LOG_LABEL, ctx->topic);
     if (ctx->rkt == NULL) {
@@ -184,7 +139,7 @@ static void push_notification_driver_kafka_init_topic(struct push_notification_d
        * are long-lived objects that should be reused as much as possible.
        */
       ctx->rkt = rd_kafka_topic_new(kafka_global->rk, ctx->topic, NULL);
-      if (ctx->rkt == NULL) {
+      if (!ctx->rkt) {
         i_error(
             "%sinit_topic - rd_kafka_topic_new() failed to create topic %s "
             "object with %s",
@@ -196,9 +151,9 @@ static void push_notification_driver_kafka_init_topic(struct push_notification_d
   }
 }
 
-static void push_notification_driver_kafka_deinit_topic(struct push_notification_driver_kafka_context *ctx) {
+void push_notification_driver_kafka_deinit_topic(struct push_notification_driver_kafka_context *ctx) {
   if (kafka_global->rk != NULL) {
-    rd_kafka_poll(kafka_global->rk, 0 /*non-blocking*/);
+    rd_kafka_poll(kafka_global->rk, kafka_global->topic_close_time_in_ms /*non-blocking*/);
   }
 
   if (ctx->rkt != NULL) {
@@ -208,8 +163,8 @@ static void push_notification_driver_kafka_deinit_topic(struct push_notification
   }
 }
 
-static void push_notification_driver_kafka_send_to_kafka(struct push_notification_driver_kafka_context *ctx,
-                                                         string_t *str, const char *username) {
+void push_notification_driver_kafka_send_to_kafka(struct push_notification_driver_kafka_context *ctx, string_t *str,
+                                                  const char *username) {
   push_notification_driver_kafka_init_topic(ctx);
 
   i_assert(str != NULL);
@@ -250,6 +205,13 @@ static void push_notification_driver_kafka_send_to_kafka(struct push_notificatio
   } else {
     i_error("%ssend_to_kafka - topic=%s not initialized", LOG_LABEL, ctx->topic);
   }
+}
+
+struct push_notification_driver_kafka_global *init_kafka_global() {
+  kafka_global = i_new(struct push_notification_driver_kafka_global, 1);
+  kafka_global->error_cb = push_notification_driver_kafka_err_cb;
+  kafka_global->dr_msg_cb = push_notification_driver_kafka_msg_cb;
+  return kafka_global;
 }
 
 /* The push notification driver itself */
@@ -298,7 +260,7 @@ static int push_notification_driver_kafka_init(struct push_notification_driver_c
   /* Initialize global Kafka context. */
 
   if (kafka_global == NULL) {
-    kafka_global = i_new(struct push_notification_driver_kafka_global, 1);
+    kafka_global = init_kafka_global();
     kafka_global->rk = NULL;
     kafka_global->refcount = 0;
 
@@ -343,6 +305,15 @@ static int push_notification_driver_kafka_init(struct push_notification_driver_c
       if (str_to_int(tmp, &kafka_global->flush_time_in_ms) < 0 || kafka_global->flush_time_in_ms < 0) {
         i_error("%sinit - kafka_flush_time_in_ms must be positive", LOG_LABEL);
         kafka_global->flush_time_in_ms = 1000;
+      }
+    }
+    tmp = mail_user_plugin_getenv(user, "kafka_topic_close_time_in_ms");
+    if (tmp == NULL) {
+      kafka_global->topic_close_time_in_ms = 1000;
+    } else {
+      if (str_to_int(tmp, &kafka_global->topic_close_time_in_ms) < 0 || kafka_global->topic_close_time_in_ms < 0) {
+        i_error("%sinit - topic_close_time_in_ms must be positive", LOG_LABEL);
+        kafka_global->topic_close_time_in_ms = 1000;
       }
     }
 

@@ -1,0 +1,27 @@
+sudo: required
+language: cpp
+services:
+- docker
+env:
+- DOVECOT="release-2.2.21"
+before_install:
+- docker network create --driver=bridge --subnet=192.168.100.0/24 --gateway=192.168.100.1 kafka_network
+- travis_wait 30 docker run -itd --name kafka --net=kafka_network --env ADVERTISED_HOST=192.168.100.2 --env ADVERTISED_PORT=9092 spotify/kafka
+- travis_wait 30 docker run -itd --name build --net=kafka_network -e SOURCE_VERSION=$DOVECOT -v $(pwd):/repo cephdovecot/travis-build:$DOVECOT sh
+- docker exec build apt-get -qq update
+- docker exec build apt-get -qq upgrade
+- docker exec build sh -c 'DEBIAN_FRONTEND=noninteractive apt-get install -qq -q librdkafka-dev'
+before_script:
+- docker exec build sh -c 'cd /usr/local/src/dovecot; git pull origin $SOURCE_VERSION'
+- docker exec build sh -c 'cd /usr/local/src/dovecot; make install'
+script:
+- docker exec build sh -c 'cd repo; ./autogen.sh'
+- docker exec build sh -c 'cd repo; ./configure --with-dovecot=/usr/local/lib/dovecot --enable-valgrind=yes --enable-maintainer-mode'
+- docker exec build sh -c 'cd repo; make clean install'
+- docker exec build sh -c 'ldconfig'
+- docker exec build sh -c 'cd repo/; make check'
+after_script:
+- docker stop build kafka
+- docker rm build kafka
+- docker network rm kafka_network
+
