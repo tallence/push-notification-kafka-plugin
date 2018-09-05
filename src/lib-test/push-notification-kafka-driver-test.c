@@ -16,7 +16,7 @@
 #include "test-common.h"
 static char* brokers = "kafka:9092";
 
-static void listen_kafka(const char* topic, int num_msg) {
+static int listen_kafka(const char* topic, int num_msg) {
   char errstr[512];
   rd_kafka_conf_t* conf;
   rd_kafka_topic_conf_t* topic_conf;
@@ -33,16 +33,14 @@ static void listen_kafka(const char* topic, int num_msg) {
   char* group = "rdkafka_consumer_example";
   if (rd_kafka_conf_set(conf, "group.id", group, errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK) {
     fprintf(stderr, "%% %s\n", errstr);
-    test_assert(FALSE);
-    return;
+    return -1;
   }
 
   /* Consumer groups always use broker based offset storage */
   if (rd_kafka_topic_conf_set(topic_conf, "offset.store.method", "broker", errstr, sizeof(errstr)) !=
       RD_KAFKA_CONF_OK) {
     fprintf(stderr, "%% %s\n", errstr);
-    test_assert(FALSE);
-    return;
+    return -1;
   }
 
   /* Set default topic config for pattern-matched topics. */
@@ -52,15 +50,13 @@ static void listen_kafka(const char* topic, int num_msg) {
   /* Create Kafka handle */
   if (!(rk = rd_kafka_new(RD_KAFKA_CONSUMER, conf, errstr, sizeof(errstr)))) {
     fprintf(stderr, "%% Failed to create new consumer: %s\n", errstr);
-    test_assert(FALSE);
-    return;
+    return -1;
   }
 
   /* Add brokers */
   if (rd_kafka_brokers_add(rk, brokers) == 0) {
     fprintf(stderr, "%% No valid brokers specified\n");
-    test_assert(FALSE);
-    return;
+    return -1;
   }
 
   /* Redirect rd_kafka_poll() to consumer_poll() */
@@ -68,7 +64,7 @@ static void listen_kafka(const char* topic, int num_msg) {
   topics = rd_kafka_topic_partition_list_new(2);
 
   rd_kafka_topic_partition_t* t = rd_kafka_topic_partition_list_add(topics, topic, 0);
-  t->offset = 0;
+  t->offset = 0;  // set queue offset for this client to start position!
 
   fprintf(stderr, "%% Assigning %d partitions\n", topics->cnt);
 
@@ -90,6 +86,7 @@ static void listen_kafka(const char* topic, int num_msg) {
       rd_kafka_message_destroy(rkmessage);
     }
 
+    // avoid rd_kafka_consumer_poll for ever!
     if (i >= num_msg + 30) {
       break;
     }
@@ -102,6 +99,7 @@ static void listen_kafka(const char* topic, int num_msg) {
   rd_kafka_destroy(rk);
   fprintf(stdout, "found messages in queue = %d , expected %d\n", msg_count, num_msg);
   test_assert(num_msg == msg_count);
+  return 0;
 }
 
 static void test_init_driver(void) {
@@ -123,9 +121,10 @@ static void test_init_driver(void) {
   kafka_global->flush_time_in_ms = 1000;
   kafka_global->brokers = brokers;
   kafka_global->topic_close_time_in_ms = -1;  // wait for all callbacks to finish in ms
-  push_notification_driver_kafka_init_global();
+  test_assert(push_notification_driver_kafka_init_global() != NULL);
 
   push_notification_driver_kafka_init_topic(&context);
+  test_assert(context.rkt != NULL);
 
   char* username = "abcdf";
   string_t* test = str_new(pool, 256);
@@ -136,11 +135,14 @@ static void test_init_driver(void) {
   }
 
   push_notification_driver_kafka_deinit_topic(&context);
+  test_assert(context.rkt == NULL);
   push_notification_driver_kafka_deinit_global();
+  test_assert(kafka_global.rk == NULL);
   i_free(kafka_global);
   pool_unref(&pool);
 
-  listen_kafka(topic, num_messages);
+  int ret = listen_kafka(topic, num_messages);
+  test_assert(ret == 0);
   test_end();
 }
 
