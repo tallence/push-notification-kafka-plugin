@@ -117,7 +117,7 @@ static void test_init_send_deinit_driver(void) {
   kafka_global->rk = NULL;
   kafka_global->flush_time_in_ms = 1000;
   kafka_global->brokers = brokers;
-  kafka_global->topic_close_time_in_ms = -1;  // wait for all callbacks to finish in ms
+  kafka_global->topic_close_time_in_ms = 10000;  // wait for all callbacks to finish in ms
   test_assert(push_notification_driver_kafka_init_global() != NULL);
 
   push_notification_driver_kafka_init_topic(&context);
