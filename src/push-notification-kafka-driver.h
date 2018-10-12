@@ -50,6 +50,7 @@ struct push_notification_driver_kafka_global {
   void (*dr_msg_cb)(rd_kafka_t *rk, const rd_kafka_message_t *rkmessage, void *opaque);
   rd_kafka_conf_t *rkc; /* Kafka configuration object */
   rd_kafka_t *rk;       /* Producer instance handle */
+  struct mail_user *user;
 };
 static struct push_notification_driver_kafka_global *kafka_global = NULL;
 

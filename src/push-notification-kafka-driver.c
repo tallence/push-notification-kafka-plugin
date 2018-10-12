@@ -60,6 +60,37 @@ static void push_notification_driver_kafka_err_cb(rd_kafka_t *rk, int err, const
   i_error("%serr_cb: %s: %s: %s", LOG_LABEL, rd_kafka_name(rk), rd_kafka_err2str(err), reason);
 }
 
+void read_plugin_kafka_settings(const char *prefix) {
+  const char *const *envs;
+  unsigned int i, count;
+  char errstr[512];
+
+  if (kafka_global->user == NULL || kafka_global->user->set == NULL) {
+    return;
+  }
+  if (!array_is_created(&kafka_global->user->set->plugin_envs)) {
+    return;
+  }
+  if (kafka_global->rkc == NULL) {
+    return;
+  }
+  if (prefix == NULL) {
+    return;
+  }
+
+  envs = array_get(&kafka_global->user->set->plugin_envs, &count);
+  for (i = 0; i < count; i += 2) {
+    if (strlen(envs[i]) > strlen(prefix)) {
+      if (strncmp(envs[i], prefix, strlen(prefix)) == 0) {
+        const char *s = envs[i] + strlen(prefix) + 1;
+        if (rd_kafka_conf_set(kafka_global->rkc, s, envs[i + 1], errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK) {
+          i_warning("%s", errstr);
+        }
+      }
+    }
+  }
+}
+
 rd_kafka_t *push_notification_driver_kafka_init_global() {
   if (kafka_global->rk == NULL) {
     char errstr[512]; /* librdkafka API error reporting buffer */
@@ -69,6 +100,10 @@ rd_kafka_t *push_notification_driver_kafka_init_global() {
      * Create Kafka client configuration place-holder
      */
     kafka_global->rkc = rd_kafka_conf_new();
+
+    // check 90-plugin.conf for librbkafka settings.
+    read_plugin_kafka_settings("kafka.notification.settings");
+
     rd_kafka_conf_set_error_cb(kafka_global->rkc, kafka_global->error_cb);
     rd_kafka_conf_set_dr_msg_cb(kafka_global->rkc, kafka_global->dr_msg_cb);
 
@@ -264,21 +299,21 @@ static int push_notification_driver_kafka_init(struct push_notification_driver_c
     kafka_global->rk = NULL;
     kafka_global->refcount = 0;
 
-    tmp = mail_user_plugin_getenv(user, "kafka_brokers");
+    tmp = mail_user_plugin_getenv(user, "kafka.notification.kafka_brokers");
     if (tmp == NULL) {
       kafka_global->brokers = i_strdup(DEFAULT_SERVERS);
     } else {
       kafka_global->brokers = i_strdup(tmp);
     }
 
-    tmp = mail_user_plugin_getenv(user, "kafka_debug");
+    tmp = mail_user_plugin_getenv(user, "kafka.notification.kafka_debug");
     if (tmp == NULL) {
       kafka_global->debug = i_strdup(DEFAULT_DEBUG);
     } else {
       kafka_global->debug = i_strdup(tmp);
     }
 
-    tmp = mail_user_plugin_getenv(user, "kafka_max_retries");
+    tmp = mail_user_plugin_getenv(user, "kafka.notification.kafka_max_retries");
     if (tmp == NULL) {
       kafka_global->max_retries = 0;
     } else {
@@ -288,7 +323,7 @@ static int push_notification_driver_kafka_init(struct push_notification_driver_c
       }
     }
 
-    tmp = mail_user_plugin_getenv(user, "kafka_retry_poll_time_in_ms");
+    tmp = mail_user_plugin_getenv(user, "kafka.notification.kafka_retry_poll_time_in_ms");
     if (tmp == NULL) {
       kafka_global->retry_poll_time_in_ms = 500;
     } else {
@@ -298,7 +333,7 @@ static int push_notification_driver_kafka_init(struct push_notification_driver_c
       }
     }
 
-    tmp = mail_user_plugin_getenv(user, "kafka_flush_time_in_ms");
+    tmp = mail_user_plugin_getenv(user, "kafka.notification.kafka_flush_time_in_ms");
     if (tmp == NULL) {
       kafka_global->flush_time_in_ms = 1000;
     } else {
@@ -307,7 +342,7 @@ static int push_notification_driver_kafka_init(struct push_notification_driver_c
         kafka_global->flush_time_in_ms = 1000;
       }
     }
-    tmp = mail_user_plugin_getenv(user, "kafka_topic_close_time_in_ms");
+    tmp = mail_user_plugin_getenv(user, "kafka.notification.kafka_topic_close_time_in_ms");
     if (tmp == NULL) {
       kafka_global->topic_close_time_in_ms = 1000;
     } else {
@@ -317,7 +352,7 @@ static int push_notification_driver_kafka_init(struct push_notification_driver_c
       }
     }
 
-    tmp = mail_user_plugin_getenv(user, "kafka_destroy_time_in_ms");
+    tmp = mail_user_plugin_getenv(user, "kafka.notification.kafka_destroy_time_in_ms");
     if (tmp == NULL) {
       kafka_global->destroy_time_in_ms = 1000;
     } else {
@@ -326,6 +361,7 @@ static int push_notification_driver_kafka_init(struct push_notification_driver_c
         kafka_global->destroy_time_in_ms = 1000;
       }
     }
+    kafka_global->user = user;
   }
 
   ++kafka_global->refcount;
