@@ -8,7 +8,7 @@
 
 AC_PREREQ([2.69])
 
-AC_INIT([push-notification-kafka], [0.0.1])
+AC_INIT([push-notification-kafka], [0.0.2])
 AC_CONFIG_AUX_DIR([.])
 AC_CONFIG_SRCDIR([src])
 AC_CONFIG_MACRO_DIR([m4])
@@ -53,7 +53,7 @@ AC_SUBST(LIBDOVECOT_INCLUDE)
 # Valgrind
 
 AC_ARG_ENABLE(valgrind,
-[AC_HELP_STRING([--enable-valgrind], [Enable Valgrind memory leak checks in testsuite [default=no]])],
+[AC_HELP_STRING([--enable-valgrind], [Enable Valgrind memory leak checks in testsuite [default=yes]])],
     if test x$enableval = xno || test x$enableval = xauto; then
         want_valgrind=$enableval
     else
