@@ -87,22 +87,22 @@ The following options can be configured as part of the driver URL:
 
  Some general communications properties are configurable in the plugin section:
 
-* **kafka_brokers**: Bootstrap servers for the Kafka cluster. The default value is `localhost:9092`.
-* **kafka_debug**: Debug option for librdkafka. See [Configuation](https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md) for details.
-* **kafka_max_retries**: If the internal queue is full, wait for messages to be delivered and then retry. The internal queue represents both messages to be sent_kafka_max_retries_ is 0, which is the default value, no retries will be done.
-* **kafka_retry_poll_time_in_ms**: The time to wait between retries.
-* **kafka_flush_time_in_ms**: Time in ms to wait while flushing internal queues on close.
-* **kafka_destroy_time_in_ms**: Time in ms to wait for the Kafka producer instance to be destroyed.
+* **kafka.notification.kafka_brokers**: Bootstrap servers for the Kafka cluster. The default value is `localhost:9092`.
+* **kafka.notification.kafka_debug**: Debug option for librdkafka. See [Configuation](https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md) for details.
+* **kafka.notification.kafka_max_retries**: If the internal queue is full, wait for messages to be delivered and then retry. The internal queue represents both messages to be sent_kafka_max_retries_ is 0, which is the default value, no retries will be done.
+* **kafka.notification.kafka_retry_poll_time_in_ms**: The time to wait between retries.
+* **kafka.notification.kafka_flush_time_in_ms**: Time in ms to wait while flushing internal queues on close.
+* **kafka.notification.kafka_destroy_time_in_ms**: Time in ms to wait for the Kafka producer instance to be destroyed.
 
 ```
 plugin {
   push_notification_driver = kafka:topic=test
-  kafka_brokers = localhost:9092
-  kafka_debug =
-  kafka_max_retries = 0
-  kafka_retry_poll_time_in_ms = 500
-  kafka_flush_time_in_ms = 1000
-  kafka_destroy_time_in_ms = 1000
+  kafka.notification.kafka_brokers = localhost:9092
+  kafka.notification.kafka_debug =
+  kafka.notification.kafka_max_retries = 0
+  kafka.notification.kafka_retry_poll_time_in_ms = 500
+  kafka.notification.kafka_flush_time_in_ms = 1000
+  kafka.notification.kafka_destroy_time_in_ms = 1000
 }
 ```
 
