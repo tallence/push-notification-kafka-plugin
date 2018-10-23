@@ -94,6 +94,7 @@ The following options can be configured as part of the driver URL:
 * **kafka.notification.kafka_flush_time_in_ms**: Time in ms to wait while flushing internal queues on close.
 * **kafka.notification.kafka_destroy_time_in_ms**: Time in ms to wait for the Kafka producer instance to be destroyed.
 
+* **kafka.notification.settings.**: The prefix can be used to set the librdkafka specific configuration settings as described [here](https://docs.confluent.io/2.0.0/clients/librdkafka/CONFIGURATION_8md.html).
 ```
 plugin {
   push_notification_driver = kafka:topic=test
@@ -103,6 +104,13 @@ plugin {
   kafka.notification.kafka_retry_poll_time_in_ms = 500
   kafka.notification.kafka_flush_time_in_ms = 1000
   kafka.notification.kafka_destroy_time_in_ms = 1000
+  
+  #ssl configuration
+  kafka.notification.settings.security.protocol=ssl
+  kafka.notification.settings.ssl.key.location=client_host.key  
+  kafka.notification.settings.ssl.key.password=PLAINTEXT pwd
+  kafka.notification.settings.ssl.certificate.location=client_host.pem
+  kafka.notification.settings.ssl.ca.location=ca-cert
 }
 ```
 
