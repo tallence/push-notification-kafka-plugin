@@ -66,22 +66,22 @@ static void push_notification_driver_log_print(const rd_kafka_t *rk, int level, 
     case LOG_EMERG:
     case LOG_ALERT:
     case LOG_CRIT:
-      i_error("%s%s|%s|%s", LOG_LABEL, fac, rd_kafka_name(rk), buf);
+      i_error("%s%s|%s|%s", LOG_LABEL, fac, rk!=NULL ? rd_kafka_name(rk) : "rk=NULL", buf);
       break;
     case LOG_ERR:
-      i_error("%s%s|%s|%s", LOG_LABEL, fac, rd_kafka_name(rk), buf);
+      i_error("%s%s|%s|%s", LOG_LABEL, fac, rk!=NULL ? rd_kafka_name(rk) : "rk=NULL", buf);
       break;
     case LOG_WARNING:
-      i_warning("%s%s|%s|%s", LOG_LABEL, fac, rd_kafka_name(rk), buf);
+      i_warning("%s%s|%s|%s", LOG_LABEL, fac, rk!=NULL ? rd_kafka_name(rk) : "rk=NULL", buf);
       break;
     case LOG_NOTICE:
     case LOG_INFO:
-      i_info("%s%s|%s|%s", LOG_LABEL, fac, rd_kafka_name(rk), buf);
+      i_info("%s%s|%s|%s", LOG_LABEL, fac, rk!=NULL ? rd_kafka_name(rk) : "rk=NULL", buf);
       break;
     case LOG_DEBUG:
     default:
 #ifdef DEBUG
-      i_debug("%s%s|%s|%s", LOG_LABEL, fac, rd_kafka_name(rk), buf);
+      i_debug("%s%s|%s|%s", LOG_LABEL, fac, rk!=NULL ? rd_kafka_name(rk) : "rk=NULL", buf);
 #endif
       break;
   }
