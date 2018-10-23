@@ -10,15 +10,16 @@
 
 %{!?dovecot_devel: %define dovecot_devel dovecot22-devel}
 %{!?librdkafka_version: %define librdkafka_version 0.11.4}
+%{!?source: %define source %{name}_%{version}-%{release}.tar.gz}
 
 Name:          push-notification-kafka-plugin
 Summary:       Dovecot push notification driver for Kafka
-Version:       0.0.2
+Version:       0.0.3
 Release:       0%{?dist}
 URL:           https://github.com/tallence/push-notification-kafka-plugin
 Group:         Productivity/Networking/Email/Servers
 License:       LGPL-2.1
-Source:        %{name}_%{version}-%{release}.tar.gz
+Source:        %{source}
 
 Provides:      push-notification-kafka-plugin = %{version}-%{release}
 
@@ -29,7 +30,7 @@ BuildRequires: gcc automake libtool
 BuildRequires: pkg-config
 
 %description
-This package provides a Kafka driver for Dovecot's push notification framework. 
+This package provides a Kafka driver for Dovecot's push notification framework.
 
 %prep
 %setup -q
@@ -41,7 +42,6 @@ export CFLAGS="%{optflags}"
 %endif
 export CFLAGS="$CFLAGS -fpic -DPIC"
 export LIBS="-pie"
-export ACLOCAL_DIR="%{dovecot_home}/share/aclocal"
 
 ./autogen.sh
 %configure \
@@ -53,6 +53,7 @@ export ACLOCAL_DIR="%{dovecot_home}/share/aclocal"
 %makeinstall
 
 # clean up unused files
+find %{buildroot}%{_libdir}/ -type f -name \*.la -delete
 find %{buildroot}%{_libdir}/dovecot/ -type f -name \*.a  -delete
 
 %clean

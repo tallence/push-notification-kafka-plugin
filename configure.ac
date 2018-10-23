@@ -8,7 +8,7 @@
 
 AC_PREREQ([2.69])
 
-AC_INIT([push-notification-kafka], [0.0.2])
+AC_INIT([push-notification-kafka-plugin], [0.0.3])
 AC_CONFIG_AUX_DIR([.])
 AC_CONFIG_SRCDIR([src])
 AC_CONFIG_MACRO_DIR([m4])

@@ -60,7 +60,7 @@ static void push_notification_driver_kafka_err_cb(rd_kafka_t *rk, int err, const
   i_error("%serr_cb: %s: %s: %s", LOG_LABEL, rd_kafka_name(rk), rd_kafka_err2str(err), reason);
 }
 
-void read_plugin_kafka_settings(const char *prefix) {
+static void read_plugin_kafka_settings(const char *prefix) {
   const char *const *envs;
   unsigned int i, count;
   char errstr[512];

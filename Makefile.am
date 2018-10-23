@@ -6,6 +6,7 @@
 # License version 2.1, as published by the Free Software
 # Foundation.  See file COPYING.
 
+aclocaldir = $(datadir)/aclocal
 ACLOCAL_AMFLAGS=-I m4
 
 SUBDIRS = src

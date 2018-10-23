@@ -57,11 +57,11 @@ static void test_push_notification_driver_kafka_render_mbox_rename(void) {
   data.old_mbox = "OLD_BOX";
   event.data = &data;
   struct push_notification_event_config event_cfg;
-  const struct push_notification_event notify_event = {push_notification_event_mailboxrename.name};
+  const struct push_notification_event notify_event = {.name = push_notification_event_mailboxrename.name};
 
   event_cfg.event = &notify_event;
   event.event = &event_cfg;
-  const struct push_notification_txn_event *msg = &event;
+  struct push_notification_txn_event *const msg = &event;
   string_t *t = push_notification_driver_kafka_render_mbox(&dtxn, NULL, &mbox, &msg);
   // i_info("MSG: %s ", str_c(t));
   test_assert(str_equals(t, test));
@@ -91,11 +91,11 @@ static void test_push_notification_driver_kafka_render_mbox_create(void) {
   data.uid_validity = 1;
   event.data = &data;
   struct push_notification_event_config event_cfg;
-  const struct push_notification_event notify_event = {push_notification_event_mailboxcreate.name};
+  const struct push_notification_event notify_event = {.name = push_notification_event_mailboxcreate.name};
 
   event_cfg.event = &notify_event;
   event.event = &event_cfg;
-  const struct push_notification_txn_event *msg = &event;
+  struct push_notification_txn_event *const msg = &event;
   string_t *t = push_notification_driver_kafka_render_mbox(&dtxn, NULL, &mbox, &msg);
   // i_info("MSG: %s ", str_c(t));
   test_assert(str_equals(t, test));
@@ -160,9 +160,6 @@ static void write_msg_prefix_test(void) {
   ptxn.pool = pool;
   dtxn.ptxn = &ptxn;
 
-  struct push_notification_txn_mbox mbox;
-  mbox.mailbox = "INBOX";
-
   struct push_notification_txn_msg event;
   event.uid = 1;
   event.uid_validity = 2;
@@ -194,9 +191,6 @@ static void write_flags_event_test(void) {
   ptxn.pool = pool;
   dtxn.ptxn = &ptxn;
 
-  struct push_notification_txn_mbox mbox;
-  mbox.mailbox = "INBOX";
-
   struct push_notification_txn_msg event;
   event.uid = 1;
   event.uid_validity = 2;
@@ -208,14 +202,14 @@ static void write_flags_event_test(void) {
   ctx.keyword_prefix = "k";
   ARRAY_TYPE(keywords) keywords;
   t_array_init(&keywords, 1);
-  char *k = "k:new_keyword";
+  const char *k = "k:new_keyword";
   const char *const *name = &k;
   array_append(&keywords, name, 1);
 
   enum mail_flags flags = MAIL_SEEN;
   ARRAY_TYPE(keywords) keywords_old;
   t_array_init(&keywords_old, 2);
-  char *k2 = "k:old_keyword";
+  const char *k2 = "k:old_keyword";
   const char *const *name2 = &k2;
   array_append(&keywords_old, name2, 1);
   enum mail_flags flags_old = MAIL_FLAGGED;
@@ -224,7 +218,7 @@ static void write_flags_event_test(void) {
   test_assert(str_equals(t, test));
 
   /****
-   * Test Json string with several keywords
+   * Test JSON string with several keywords
    */
   string_t *test2 = str_new(pool, 256);
   str_append(test2,
@@ -233,11 +227,11 @@ static void write_flags_event_test(void) {
              "keyword2\"],\"oldKeywords\":["
              "\"k:old_keyword\",\"k:old_keyword2\"]}");
 
-  char *k3 = "k:new_keyword2";
+  const char *k3 = "k:new_keyword2";
   const char *const *name3 = &k3;
   array_append(&keywords, name3, 1);
 
-  char *k4 = "k:old_keyword2";
+  const char *k4 = "k:old_keyword2";
   const char *const *name4 = &k4;
   array_append(&keywords_old, name4, 1);
   t = write_flags_event(&dtxn, &ctx, "MailboxCreate", &event, flags, &keywords, flags_old, &keywords_old);
@@ -284,9 +278,6 @@ static void write_event_messagenew_test(void) {
   ptxn.pool = pool;
   dtxn.ptxn = &ptxn;
 
-  struct push_notification_txn_mbox mbox;
-  mbox.mailbox = "INBOX";
-
   struct push_notification_txn_msg msg;
   msg.uid = 1;
   msg.uid_validity = 2;
@@ -304,11 +295,11 @@ static void write_event_messagenew_test(void) {
 
   event.data = &data;
   struct push_notification_event_config event_cfg;
-  const struct push_notification_event notify_event = {push_notification_event_messagenew.name};
+  const struct push_notification_event notify_event = {.name = push_notification_event_messagenew.name};
 
   event_cfg.event = &notify_event;
   event.event = &event_cfg;
-  const struct push_notification_txn_event *ev = &event;
+  struct push_notification_txn_event *const ev = &event;
 
   string_t *t = write_event_messagenew(&dtxn, &msg, &ev);
   // i_info("MSG: %s ", str_c(t));
@@ -335,9 +326,6 @@ static void write_event_messageappend_test(void) {
   ptxn.pool = pool;
   dtxn.ptxn = &ptxn;
 
-  struct push_notification_txn_mbox mbox;
-  mbox.mailbox = "INBOX";
-
   struct push_notification_txn_msg msg;
   msg.uid = 1;
   msg.uid_validity = 2;
@@ -354,11 +342,11 @@ static void write_event_messageappend_test(void) {
 
   event.data = &data;
   struct push_notification_event_config event_cfg;
-  const struct push_notification_event notify_event = {push_notification_event_messageappend.name};
+  struct push_notification_event notify_event = {.name = push_notification_event_messageappend.name};
 
   event_cfg.event = &notify_event;
   event.event = &event_cfg;
-  const struct push_notification_txn_event *ev = &event;
+  struct push_notification_txn_event *const ev = &event;
 
   string_t *t = write_event_messageappend(&dtxn, &msg, &ev);
   // i_info("MSG: %s ", str_c(t));
