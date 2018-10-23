@@ -10,6 +10,7 @@
  */
 
 #include <time.h>
+#include <syslog.h>
 #include <librdkafka/rdkafka.h>
 
 #include "lib.h"
@@ -60,6 +61,32 @@ static void push_notification_driver_kafka_err_cb(rd_kafka_t *rk, int err, const
   i_error("%serr_cb: %s: %s: %s", LOG_LABEL, rd_kafka_name(rk), rd_kafka_err2str(err), reason);
 }
 
+static void push_notification_driver_log_print(const rd_kafka_t *rk, int level, const char *fac, const char *buf) {
+  switch (level) {
+    case LOG_EMERG:
+    case LOG_ALERT:
+    case LOG_CRIT:
+      i_error("%s%s|%s|%s", LOG_LABEL, fac, rd_kafka_name(rk), buf);
+      break;
+    case LOG_ERR:
+      i_error("%s%s|%s|%s", LOG_LABEL, fac, rd_kafka_name(rk), buf);
+      break;
+    case LOG_WARNING:
+      i_warning("%s%s|%s|%s", LOG_LABEL, fac, rd_kafka_name(rk), buf);
+      break;
+    case LOG_NOTICE:
+    case LOG_INFO:
+      i_info("%s%s|%s|%s", LOG_LABEL, fac, rd_kafka_name(rk), buf);
+      break;
+    case LOG_DEBUG:
+    default:
+#ifdef DEBUG
+      i_debug("%s%s|%s|%s", LOG_LABEL, fac, rd_kafka_name(rk), buf);
+#endif
+      break;
+  }
+}
+
 static void read_plugin_kafka_settings(const char *prefix) {
   const char *const *envs;
   unsigned int i, count;
@@ -100,6 +127,9 @@ rd_kafka_t *push_notification_driver_kafka_init_global() {
      * Create Kafka client configuration place-holder
      */
     kafka_global->rkc = rd_kafka_conf_new();
+
+    /* Set logger */
+    rd_kafka_conf_set_log_cb(kafka_global->rkc, push_notification_driver_log_print);
 
     // check 90-plugin.conf for librbkafka settings.
     read_plugin_kafka_settings("kafka.notification.settings");
