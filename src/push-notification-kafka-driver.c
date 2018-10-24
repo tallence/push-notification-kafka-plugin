@@ -66,22 +66,22 @@ static void push_notification_driver_log_print(const rd_kafka_t *rk, int level, 
     case LOG_EMERG:
     case LOG_ALERT:
     case LOG_CRIT:
-      i_error("%s%s|%s|%s", LOG_LABEL, fac, rd_kafka_name(rk), buf);
+      i_error("%sRDKAFKA-%d-%s: %s: %s", LOG_LABEL, level, fac, rk ? rd_kafka_name(rk) : "-", buf);
       break;
     case LOG_ERR:
-      i_error("%s%s|%s|%s", LOG_LABEL, fac, rd_kafka_name(rk), buf);
+      i_error("%sRDKAFKA-%d-%s: %s: %s", LOG_LABEL, level, fac, rk ? rd_kafka_name(rk) : "-", buf);
       break;
     case LOG_WARNING:
-      i_warning("%s%s|%s|%s", LOG_LABEL, fac, rd_kafka_name(rk), buf);
+      i_warning("%sRDKAFKA-%d-%s: %s: %s", LOG_LABEL, level, fac, rk ? rd_kafka_name(rk) : "-", buf);
       break;
     case LOG_NOTICE:
     case LOG_INFO:
-      i_info("%s%s|%s|%s", LOG_LABEL, fac, rd_kafka_name(rk), buf);
+      i_info("%sRDKAFKA-%d-%s: %s: %s", LOG_LABEL, level, fac, rk ? rd_kafka_name(rk) : "-", buf);
       break;
     case LOG_DEBUG:
     default:
 #ifdef DEBUG
-      i_debug("%s%s|%s|%s", LOG_LABEL, fac, rd_kafka_name(rk), buf);
+      i_debug("%sRDKAFKA-%d-%s: %s: %s", LOG_LABEL, level, fac, rk ? rd_kafka_name(rk) : "-", buf);
 #endif
       break;
   }
@@ -128,8 +128,8 @@ rd_kafka_t *push_notification_driver_kafka_init_global() {
      */
     kafka_global->rkc = rd_kafka_conf_new();
 
-    /* Set logger */
-    rd_kafka_conf_set_log_cb(kafka_global->rkc, push_notification_driver_log_print);
+    /* Disable stderr logger */
+    rd_kafka_conf_set_log_cb(kafka_global->rkc, NULL);
 
     // check 90-plugin.conf for librbkafka settings.
     read_plugin_kafka_settings("kafka.notification.settings");
