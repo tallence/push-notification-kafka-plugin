@@ -171,7 +171,9 @@ string_t *write_flags_event(struct push_notification_driver_txn *dtxn,
   if (keywords_old != NULL && array_is_created(keywords_old) && array_not_empty(keywords_old)) {
     str_append(str, ",\"oldKeywords\":[");
     array_foreach(keywords_old, keyword) {
+#ifdef DEBUG
       i_debug("%swrite_flags_event keyword=%s", LOG_LABEL, *keyword);
+#endif
       if (str_starts_with(*keyword, render_ctx->keyword_prefix)) {
         if (i > 0) {
           str_append(str, ",\"");

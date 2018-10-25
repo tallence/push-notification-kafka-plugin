@@ -48,42 +48,24 @@
 static void push_notification_driver_kafka_msg_cb(rd_kafka_t *rk ATTR_UNUSED, const rd_kafka_message_t *rkmessage,
                                                   void *opaque ATTR_UNUSED) {
   if (rkmessage->err) {
-    i_error("%smsg_cb: message delivery failed: %s", LOG_LABEL, rd_kafka_err2str(rkmessage->err));
-  } else {
+    fprintf(stderr, "%smsg_cb: message delivery failed: %s\n", LOG_LABEL, rd_kafka_err2str(rkmessage->err));
+  }
+#ifdef DEBUG
+  else {
     i_debug("%smsg_cb: message delivered (%zd bytes, partition %" PRId32 ")", LOG_LABEL, rkmessage->len,
             rkmessage->partition);
   }
-
+#endif
   /* The rkmessage is destroyed automatically by librdkafka */
 }
 static void push_notification_driver_kafka_err_cb(rd_kafka_t *rk, int err, const char *reason,
                                                   void *opaque ATTR_UNUSED) {
-  i_error("%serr_cb: %s: %s: %s", LOG_LABEL, rd_kafka_name(rk), rd_kafka_err2str(err), reason);
+  fprintf(stderr, "%serr_cb: %s: %s: %s\n", LOG_LABEL, rd_kafka_name(rk), rd_kafka_err2str(err), reason);
 }
 
 static void push_notification_driver_log_print(const rd_kafka_t *rk, int level, const char *fac, const char *buf) {
-  switch (level) {
-    case LOG_EMERG:
-    case LOG_ALERT:
-    case LOG_CRIT:
-      i_error("%sRDKAFKA-%d-%s: %s: %s", LOG_LABEL, level, fac, rk ? rd_kafka_name(rk) : "-", buf);
-      break;
-    case LOG_ERR:
-      i_error("%sRDKAFKA-%d-%s: %s: %s", LOG_LABEL, level, fac, rk ? rd_kafka_name(rk) : "-", buf);
-      break;
-    case LOG_WARNING:
-      i_warning("%sRDKAFKA-%d-%s: %s: %s", LOG_LABEL, level, fac, rk ? rd_kafka_name(rk) : "-", buf);
-      break;
-    case LOG_NOTICE:
-    case LOG_INFO:
-      i_info("%sRDKAFKA-%d-%s: %s: %s", LOG_LABEL, level, fac, rk ? rd_kafka_name(rk) : "-", buf);
-      break;
-    case LOG_DEBUG:
-    default:
-#ifdef DEBUG
-      i_debug("%sRDKAFKA-%d-%s: %s: %s", LOG_LABEL, level, fac, rk ? rd_kafka_name(rk) : "-", buf);
-#endif
-      break;
+  if (level == LOG_ERR) {
+    fprintf(stderr, "%sRDKAFKA-%d-%s: %s: %s\n", LOG_LABEL, level, fac, rk ? rd_kafka_name(rk) : "-", buf);
   }
 }
 
@@ -121,15 +103,16 @@ static void read_plugin_kafka_settings(const char *prefix) {
 rd_kafka_t *push_notification_driver_kafka_init_global() {
   if (kafka_global->rk == NULL) {
     char errstr[512]; /* librdkafka API error reporting buffer */
-
+#ifdef DEBUG
     i_debug("%sinit_global - initialize brokers=%s", LOG_LABEL, kafka_global->brokers);
+#endif
     /*
      * Create Kafka client configuration place-holder
      */
     kafka_global->rkc = rd_kafka_conf_new();
 
-    /* Disable stderr logger */
-    rd_kafka_conf_set_log_cb(kafka_global->rkc, NULL);
+    /* do not use dovecot logging (e.g. i_debug, i_info, i_err) in log callback. */
+    rd_kafka_conf_set_log_cb(kafka_global->rkc, push_notification_driver_log_print);
 
     // check 90-plugin.conf for librbkafka settings.
     read_plugin_kafka_settings("kafka.notification.settings");
@@ -168,6 +151,8 @@ rd_kafka_t *push_notification_driver_kafka_init_global() {
       rd_kafka_conf_destroy(kafka_global->rkc);
       kafka_global->rkc = NULL;
     }
+    /* set log level to err (default is LOG_DEBUG)*/
+    rd_kafka_set_log_level(kafka_global->rk, LOG_ERR);
   }
 
   return kafka_global->rk;
@@ -175,15 +160,18 @@ rd_kafka_t *push_notification_driver_kafka_init_global() {
 
 void push_notification_driver_kafka_deinit_global() {
   if (kafka_global->rk != NULL) {
-    /* Shutdown Kafka */
+/* Shutdown Kafka */
 
-    /* Wait for final messages to be delivered or fail.
-     * rd_kafka_flush() is an abstraction over rd_kafka_poll() which
-     * waits for all messages to be delivered. */
+/* Wait for final messages to be delivered or fail.
+ * rd_kafka_flush() is an abstraction over rd_kafka_poll() which
+ * waits for all messages to be delivered. */
+#ifdef DEBUG
     i_debug("%sdeinit_global - flushing Kafka messages...", LOG_LABEL);
+#endif
     rd_kafka_flush(kafka_global->rk, kafka_global->flush_time_in_ms);
-
+#ifdef DEBUG
     i_debug("%sdeinit_global - rd_kafka_destroy...", LOG_LABEL);
+#endif
     /* Destroy the Kafka producer instance */
     rd_kafka_destroy(kafka_global->rk);
 
@@ -195,7 +183,9 @@ void push_notification_driver_kafka_deinit_global() {
 
 void push_notification_driver_kafka_init_topic(struct push_notification_driver_kafka_context *ctx) {
   if (push_notification_driver_kafka_init_global() != NULL) {
+#ifdef DEBUG
     i_debug("%sinit_topic - initialize topic=%s", LOG_LABEL, ctx->topic);
+#endif
     if (ctx->rkt == NULL) {
       /* Create topic object that will be reused for each message
        * produced.
@@ -222,7 +212,9 @@ void push_notification_driver_kafka_deinit_topic(struct push_notification_driver
   }
 
   if (ctx->rkt != NULL) {
+#ifdef DEBUG
     i_debug("%sdeinit_topic: destroy Kafka topic object '%s'", LOG_LABEL, ctx->topic);
+#endif
     rd_kafka_topic_destroy(ctx->rkt);
     ctx->rkt = NULL;
   }
@@ -262,9 +254,9 @@ void push_notification_driver_kafka_send_to_kafka(struct push_notification_drive
         }
       }
     }
-
+#ifdef DEBUG
     i_debug("%ssend_to_kafka - send %zu bytes to topic=%s with key=%s", LOG_LABEL, str_len(str), ctx->topic, username);
-
+#endif
     /* Keep Kafka happy. */
     rd_kafka_poll(kafka_global->rk, 0 /*non-blocking*/);
   } else {

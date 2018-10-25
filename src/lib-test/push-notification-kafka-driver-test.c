@@ -14,6 +14,7 @@
 #include "push-notification-kafka-event.h"
 #include "push-notification-kafka-driver.h"
 #include "test-common.h"
+#include <syslog.h>
 static char* brokers = "kafka:9092";
 
 static int listen_kafka(const char* topic, int num_msg) {
@@ -52,7 +53,8 @@ static int listen_kafka(const char* topic, int num_msg) {
     fprintf(stderr, "%% Failed to create new consumer: %s\n", errstr);
     return -1;
   }
-
+  /* set log level to err (default is LOG_DEBUG)*/
+  rd_kafka_set_log_level(rk, LOG_ERR);
   /* Add brokers */
   if (rd_kafka_brokers_add(rk, brokers) == 0) {
     fprintf(stderr, "%% No valid brokers specified\n");
