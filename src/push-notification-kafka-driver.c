@@ -417,13 +417,14 @@ static bool push_notification_driver_kafka_begin_txn(struct push_notification_dr
         config = (struct push_notification_event_messagenew_config *)p_new(
             dtxn->ptxn->pool, struct push_notification_event_messagenew_config, 1);
         config->flags = PUSH_NOTIFICATION_MESSAGE_HDR_FROM | PUSH_NOTIFICATION_MESSAGE_HDR_SUBJECT |
-                        PUSH_NOTIFICATION_MESSAGE_HDR_SUBJECT | PUSH_NOTIFICATION_MESSAGE_HDR_DATE |
+                        PUSH_NOTIFICATION_MESSAGE_HDR_TO | PUSH_NOTIFICATION_MESSAGE_HDR_DATE |
                         PUSH_NOTIFICATION_MESSAGE_BODY_SNIPPET;
       } else if (strcmp(*event, push_notification_event_messageappend.name) == 0) {
         config = (struct push_notification_event_messagenew_config *)p_new(
             dtxn->ptxn->pool, struct push_notification_event_messageappend_config, 1);
         config->flags = PUSH_NOTIFICATION_MESSAGE_HDR_FROM | PUSH_NOTIFICATION_MESSAGE_HDR_SUBJECT |
-                        PUSH_NOTIFICATION_MESSAGE_HDR_SUBJECT | PUSH_NOTIFICATION_MESSAGE_BODY_SNIPPET;
+                        PUSH_NOTIFICATION_MESSAGE_HDR_TO | PUSH_NOTIFICATION_MESSAGE_HDR_DATE |
+                        PUSH_NOTIFICATION_MESSAGE_BODY_SNIPPET;
       }
       push_notification_event_init(dtxn, *event, config);
     }
