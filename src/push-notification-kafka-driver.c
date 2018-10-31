@@ -414,14 +414,14 @@ static bool push_notification_driver_kafka_begin_txn(struct push_notification_dr
     for (event = ctx->events; *event != NULL; event++) {
       struct push_notification_event_messagenew_config *config = NULL;
       if (strcmp(*event, push_notification_event_messagenew.name) == 0) {
-        struct push_notification_event_messagenew_config *config =
-            p_new(dtxn->ptxn->pool, struct push_notification_event_messagenew_config, 1);
+        config = (struct push_notification_event_messagenew_config *)p_new(
+            dtxn->ptxn->pool, struct push_notification_event_messagenew_config, 1);
         config->flags = PUSH_NOTIFICATION_MESSAGE_HDR_FROM | PUSH_NOTIFICATION_MESSAGE_HDR_SUBJECT |
                         PUSH_NOTIFICATION_MESSAGE_HDR_SUBJECT | PUSH_NOTIFICATION_MESSAGE_HDR_DATE |
                         PUSH_NOTIFICATION_MESSAGE_BODY_SNIPPET;
       } else if (strcmp(*event, push_notification_event_messageappend.name) == 0) {
-        struct push_notification_event_messageappend_config *config =
-            p_new(dtxn->ptxn->pool, struct push_notification_event_messageappend_config, 1);
+        config = (struct push_notification_event_messagenew_config *)p_new(
+            dtxn->ptxn->pool, struct push_notification_event_messageappend_config, 1);
         config->flags = PUSH_NOTIFICATION_MESSAGE_HDR_FROM | PUSH_NOTIFICATION_MESSAGE_HDR_SUBJECT |
                         PUSH_NOTIFICATION_MESSAGE_HDR_SUBJECT | PUSH_NOTIFICATION_MESSAGE_BODY_SNIPPET;
       }
@@ -478,7 +478,6 @@ static void push_notification_driver_kafka_process_msg(struct push_notification_
 
     array_foreach(&msg->eventdata, event) {
       const char *event_name = (*event)->event->event->name;
-
       push_notification_driver_debug(LOG_LABEL, user, "process_msg - user=%s, mailbox=%s, uid=%u, event=%s",
                                      user->username, msg->mailbox, msg->uid, event_name);
 
