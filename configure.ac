@@ -62,6 +62,24 @@ AC_ARG_ENABLE(valgrind,
     want_valgrind=no)
 AM_CONDITIONAL(TESTSUITE_VALGRIND, test "$want_valgrind" = "yes")
 
+
+AC_ARG_ENABLE(debug,
+[AC_HELP_STRING([--enable-debug], [Enable debug [default=no]])],
+    if test x$enableval = xyes || test x$enableval = xauto; then
+        enable_debug=$enableval
+    else
+       enable_debug=no
+    fi,
+    enable_debug=no)
+
+if test "$enable_debug" = yes; then
+   AC_DEFINE([DEBUG],[],[Debug Mode])
+else
+   enable_debug = false
+   AC_DEFINE([NDEBUG],[],[Release Mode])
+fi
+
+
 # Makefiles
 
 AC_CONFIG_FILES([
@@ -72,5 +90,6 @@ src/Makefile
 AC_OUTPUT
 
 echo
+AC_MSG_NOTICE([DEBUG is enabled ................ : $enable_debug])
 AC_MSG_NOTICE([Install prefix ................ : $prefix])
 AC_MSG_NOTICE([Dovecot directory ............. : $dovecotdir])
