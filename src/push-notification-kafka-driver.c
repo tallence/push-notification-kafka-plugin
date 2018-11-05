@@ -27,6 +27,8 @@
 #include "push-notification-txn-msg.h"
 #include "push-notification-event-messagenew.h"
 #include "push-notification-event-messageappend.h"
+#include "push-notification-event-flagsclear.h"
+#include "push-notification-event-flagsset.h"
 
 #include "push-notification-kafka-plugin.h"
 #include "push-notification-kafka-event.h"
@@ -412,19 +414,30 @@ static bool push_notification_driver_kafka_begin_txn(struct push_notification_dr
 
     char *const *event;
     for (event = ctx->events; *event != NULL; event++) {
-      struct push_notification_event_messagenew_config *config = NULL;
+      void *config = NULL;
       if (strcmp(*event, push_notification_event_messagenew.name) == 0) {
-        config = (struct push_notification_event_messagenew_config *)p_new(
-            dtxn->ptxn->pool, struct push_notification_event_messagenew_config, 1);
-        config->flags = PUSH_NOTIFICATION_MESSAGE_HDR_FROM | PUSH_NOTIFICATION_MESSAGE_HDR_SUBJECT |
-                        PUSH_NOTIFICATION_MESSAGE_HDR_TO | PUSH_NOTIFICATION_MESSAGE_HDR_DATE |
-                        PUSH_NOTIFICATION_MESSAGE_BODY_SNIPPET;
+        struct push_notification_event_messagenew_config *config_ =
+            p_new(dtxn->ptxn->pool, struct push_notification_event_messagenew_config, 1);
+        config_->flags = PUSH_NOTIFICATION_MESSAGE_HDR_FROM | PUSH_NOTIFICATION_MESSAGE_HDR_SUBJECT |
+                         PUSH_NOTIFICATION_MESSAGE_HDR_TO | PUSH_NOTIFICATION_MESSAGE_HDR_DATE |
+                         PUSH_NOTIFICATION_MESSAGE_BODY_SNIPPET;
+        config = (void *)config_;
       } else if (strcmp(*event, push_notification_event_messageappend.name) == 0) {
-        config = (struct push_notification_event_messagenew_config *)p_new(
-            dtxn->ptxn->pool, struct push_notification_event_messageappend_config, 1);
-        config->flags = PUSH_NOTIFICATION_MESSAGE_HDR_FROM | PUSH_NOTIFICATION_MESSAGE_HDR_SUBJECT |
-                        PUSH_NOTIFICATION_MESSAGE_HDR_TO | PUSH_NOTIFICATION_MESSAGE_HDR_DATE |
-                        PUSH_NOTIFICATION_MESSAGE_BODY_SNIPPET;
+        struct push_notification_event_messageappend_config *config_ =
+            p_new(dtxn->ptxn->pool, struct push_notification_event_messageappend_config, 1);
+        config_->flags = PUSH_NOTIFICATION_MESSAGE_HDR_FROM | PUSH_NOTIFICATION_MESSAGE_HDR_SUBJECT |
+                         PUSH_NOTIFICATION_MESSAGE_HDR_TO | PUSH_NOTIFICATION_MESSAGE_HDR_DATE |
+                         PUSH_NOTIFICATION_MESSAGE_BODY_SNIPPET;
+        config = (void *)config_;
+      } else if (strcmp(*event, push_notification_event_flagsset.name) == 0) {
+        struct push_notification_event_flagsset_config *config_ =
+            p_new(dtxn->ptxn->pool, struct push_notification_event_flagsset_config, 1);
+        config = (void *)config_;
+      } else if (strcmp(*event, push_notification_event_flagsset.name) == 0) {
+        struct push_notification_event_flagsclear_config *config_ =
+            p_new(dtxn->ptxn->pool, struct push_notification_event_flagsclear_config, 1);
+        config_->store_old = TRUE;
+        config = (void *)config_;
       }
       push_notification_event_init(dtxn, *event, config);
     }
