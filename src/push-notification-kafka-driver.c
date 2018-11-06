@@ -300,7 +300,7 @@ static int push_notification_driver_kafka_init(struct push_notification_driver_c
 
   const char *feature = hash_table_lookup(config->config, (const char *)"feature");
   ctx->enabled = TRUE;
-  if (tmp != NULL) {
+  if (feature != NULL) {
     tmp = mail_user_plugin_getenv(user, feature);
     ctx->enabled = (tmp != NULL && strcasecmp(tmp, "on") == 0);
   }
@@ -309,7 +309,6 @@ static int push_notification_driver_kafka_init(struct push_notification_driver_c
     events = DEFAULT_EVENTS;
   }
   if (ctx->events != NULL) {
-    i_debug("EVENTS: %s", ctx->events);
     p_strsplit_free(pool, ctx->events);
   }
   ctx->events = p_strsplit(pool, events, ",");
