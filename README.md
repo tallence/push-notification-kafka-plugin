@@ -59,7 +59,7 @@ Follow the instructions in [Dovecot's Push Notification Framework](https://wiki.
  To active the Kafka driver an entry `push_notification_driver` has to be added to the Dovecot plugin configuration, specifying the Kafka driver URL.  
 
     push_notification_driver = kafka:topic=dovecot
-    push_notification_driver = kafka:topic=expunge events=FlagsClear,FlagsSet,MessageExpunge
+    push_notification_driver2 = kafka:topic=expunge events=FlagsClear,FlagsSet,MessageExpunge
 
 The Kafka driver is able to produce to *one* Cluster of Kafka brokers. You can start multiple driver instances publishing to different topics with different configurations.
 
@@ -79,7 +79,7 @@ The following options can be configured as part of the driver URL:
   * MessageNew
   * MessageRead
   * MessageTrash
-* **keyword_prefix**: If _FlagsClear_ or _FlagsSet_ are active, `send_flags` controls whether changes of IMAP flags like /Seen will be published.
+* **keyword_prefix**: If _FlagsClear_ or _FlagsSet_ are active, `keyword_prefix` controls which keywords will be published. The default is $.
 * **send_flags**: If _FlagsClear_ or _FlagsSet_ are active, `send_flags` controls whether changes of IMAP flags like /Seen will be published. The default value is `on`
   * `on`: publish flag changes
   * `off`: do not publish flag changes
