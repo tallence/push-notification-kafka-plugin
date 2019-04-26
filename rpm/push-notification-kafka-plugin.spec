@@ -14,7 +14,7 @@
 
 Name:          push-notification-kafka-plugin
 Summary:       Dovecot push notification driver for Kafka
-Version:       0.0.3
+Version:       0.0.4
 Release:       0%{?dist}
 URL:           https://github.com/tallence/push-notification-kafka-plugin
 Group:         Productivity/Networking/Email/Servers
