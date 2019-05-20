@@ -15,6 +15,7 @@
 #include <librdkafka/rdkafka.h>
 #include "lib.h"
 #include "push-notification-events.h"
+#include "push-notification-kafka-event.h"
 
 extern struct push_notification_event push_notification_event_messagenew;
 extern struct push_notification_event push_notification_event_messageappend;
@@ -52,13 +53,14 @@ struct push_notification_driver_kafka_global {
   rd_kafka_t *rk;       /* Producer instance handle */
   struct mail_user *user;
 };
-static struct push_notification_driver_kafka_global *kafka_global = NULL;
+extern struct push_notification_driver_kafka_global *kafka_global;
 
 struct push_notification_driver_kafka_context {
   pool_t pool;
 
   char *topic;
   char **events;
+  char **userdb_fields;
   bool enabled;
 
   struct push_notification_driver_kafka_render_context render_ctx;

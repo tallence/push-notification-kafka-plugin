@@ -18,6 +18,7 @@
 #include "json-parser.h"
 #include "iso8601-date.h"
 #include "macros.h"
+#include "mail-user.h"
 
 #include "push-notification-drivers.h"
 #include "push-notification-events.h"
@@ -31,7 +32,8 @@
 #include "push-notification-event-messageappend.h"
 
 #include "push-notification-kafka-plugin.h"
-#include "push-notification-kafka-event.h"
+#include "push-notification-kafka-driver.h"
+
 
 bool str_starts_with(const char *str, const char *prefix) {
   if (str == NULL || prefix == NULL)
@@ -119,8 +121,22 @@ bool write_flags(enum mail_flags flags, string_t *str) {
 string_t *write_msg_prefix(struct push_notification_driver_txn *dtxn, const char *event_name,
                            struct push_notification_txn_msg *msg) {
   string_t *str = str_new(dtxn->ptxn->pool, 512);
+  struct push_notification_driver_kafka_context *ctx = (struct push_notification_driver_kafka_context *)dtxn->duser->context;
+
   str_append(str, "{\"user\":\"");
   json_append_escaped(str, dtxn->ptxn->muser->username);
+
+  char *const *userdb_field;
+  for (userdb_field = ctx->userdb_fields; *userdb_field != NULL; userdb_field++) {
+    const char *value = mail_user_plugin_getenv(dtxn->ptxn->muser, *userdb_field);
+    if (value != NULL) {
+      str_append(str, "\",\"");
+      json_append_escaped(str, *userdb_field);
+      str_append(str, "\":\"");
+      json_append_escaped(str, value);
+    }
+  }
+
   str_append(str, "\",\"mailbox\":\"");
   json_append_escaped(str, msg->mailbox);
   str_printfa(str, "\",\"event\":\"%s\",\"uidvalidity\":%u,\"uid\":%u", event_name, msg->uid_validity, msg->uid);
