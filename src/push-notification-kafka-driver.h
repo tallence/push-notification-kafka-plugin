@@ -59,6 +59,7 @@ struct push_notification_driver_kafka_context {
 
   char *topic;
   char **events;
+  char **userdb_fields;
   bool enabled;
 
   struct push_notification_driver_kafka_render_context render_ctx;

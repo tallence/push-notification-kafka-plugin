@@ -121,6 +121,18 @@ string_t *write_msg_prefix(struct push_notification_driver_txn *dtxn, const char
   string_t *str = str_new(dtxn->ptxn->pool, 512);
   str_append(str, "{\"user\":\"");
   json_append_escaped(str, dtxn->ptxn->muser->username);
+
+  char *const *userdb_field;
+  for (userdb_field = ctx->userdb_fields; *userdb_field != NULL; userdb_field++) {
+    char *const value = mail_user_plugin_getenv(dtxn->ptxn->muser, userdb_field);
+    if (value != NULL) {
+      str_append(str, "\",\"");
+      json_append_escaped(str, userdb_field);
+      str_append(str, "\":\"");
+      json_append_escaped(str, value);
+    }
+  }
+
   str_append(str, "\",\"mailbox\":\"");
   json_append_escaped(str, msg->mailbox);
   str_printfa(str, "\",\"event\":\"%s\",\"uidvalidity\":%u,\"uid\":%u", event_name, msg->uid_validity, msg->uid);
