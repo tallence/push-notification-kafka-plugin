@@ -58,8 +58,10 @@ Follow the instructions in [Dovecot's Push Notification Framework](https://wiki.
 
  To active the Kafka driver an entry `push_notification_driver` has to be added to the Dovecot plugin configuration, specifying the Kafka driver URL.  
 
-    push_notification_driver = kafka:topic=dovecot
-    push_notification_driver2 = kafka:topic=expunge events=FlagsClear,FlagsSet,MessageExpunge
+```
+push_notification_driver = kafka:topic=dovecot
+push_notification_driver2 = kafka:topic=expunge events=FlagsClear,FlagsSet,MessageExpunge userdb=k1,k2
+```
 
 The Kafka driver is able to produce to *one* Cluster of Kafka brokers. You can start multiple driver instances publishing to different topics with different configurations.
 
@@ -83,9 +85,10 @@ The following options can be configured as part of the driver URL:
 * **send_flags**: If _FlagsClear_ or _FlagsSet_ are active, `send_flags` controls whether changes of IMAP flags like /Seen will be published. The default value is `on`
   * `on`: publish flag changes
   * `off`: do not publish flag changes
-* **feature**: The name of an `user_db` field that enables or disables Kafka events on a per user base. The value must be `on` to allow Kafka events. If `feature` is not configured, all users are enabled by default.
+* **userdb**: A comma separated list of keys from user plugin settings or userdb environment fields that will be added to the sent event right after the _user_.
+* **feature**: The name of a single key from user plugin settings or userdb environment fields that enables or disables Kafka events on a per user base. The value must be `on` to allow Kafka events. If `feature` is not configured, all users are enabled by default.
 
- Some general communications properties are configurable in the plugin section:
+Some general communications properties are configurable in the plugin section:
 
 * **kafka.notification.kafka_brokers**: Bootstrap servers for the Kafka cluster. The default value is `localhost:9092`.
 * **kafka.notification.kafka_debug**: Debug option for librdkafka. See [Configuation](https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md) for details.
@@ -104,7 +107,7 @@ plugin {
   kafka.notification.kafka_retry_poll_time_in_ms = 500
   kafka.notification.kafka_flush_time_in_ms = 1000
   kafka.notification.kafka_destroy_time_in_ms = 1000
-  
+
   #ssl configuration
   kafka.notification.settings.security.protocol=ssl
   kafka.notification.settings.ssl.key.location=client_host.key  
@@ -116,10 +119,30 @@ plugin {
 
 ### Event Serialization
 
-The events are serialized as JSON data structures. The invariant prefix is
+The events are serialized as JSON data structures. The invariant prefix for all events is
 * user
+* fields from _userdb_ configuration
 * mailbox
 * event
+
+The following example illustrates an event
+
+```
+{
+  "user": "520000004149-0001",
+  "userdb": {
+    "k1": "v1",
+    "k2": "k2"
+  },
+  "mailbox": "INBOX",
+  "event": "FlagsClear",
+  "uidvalidity": 1531299564,
+  "uid": 13,
+  "flags": [
+    "\\Seen"
+  ]
+}
+```
 
 A mail is identified by
 * uidvalidity
@@ -129,7 +152,7 @@ Depending of the actual event type additional fields like keyword or flags are s
 
 ```
 {"user":"520000004149-0001","mailbox":"INBOX","event":"FlagsClear","uidvalidity":1531299564,"uid":13,"keywords":["$label2","$label1"]}
-{"user":"520000004149-0001","mailbox":"INBOX","event":"FlagsClear","uidvalidity":1531299564,"uid":13,"flags":["\\Seen"]}
+{"user":"520000004149-0001","userdb": {"k1":"v1","k2":"k2"},"mailbox":"INBOX","event":"FlagsClear","uidvalidity":1531299564,"uid":13,"flags":["\\Seen"]}
 {"user":"520000004149-0001","mailbox":"INBOX","event":"FlagsSet","uidvalidity":1531299564,"uid":13,"keywords":["$label1"]}
 {"user":"520000004149-0001","mailbox":"INBOX","event":"FlagsSet","uidvalidity":1531299564,"uid":13,"flags":["\\Seen"]}
 {"user":"520000004149-0001","mailbox":"INBOX","event":"MessageRead","uidvalidity":1531299564,"uid":13}

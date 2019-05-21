@@ -318,12 +318,36 @@ static int push_notification_driver_kafka_init(struct push_notification_driver_c
 
   const char *userdb_fields = hash_table_lookup(config->config, (const char *)"userdb");
   if (userdb_fields == NULL) {
-      userdb_fields = "";
+    userdb_fields = "";
   }
   if (ctx->userdb_fields != NULL) {
     p_strsplit_free(pool, ctx->userdb_fields);
   }
   ctx->userdb_fields = p_strsplit(pool, userdb_fields, ",");
+
+  ctx->userdb_json = str_new(ctx->pool, 1024);
+  char *const *userdb_field;
+  int i = 0;
+  str_append(ctx->userdb_json, "\"userdb\":{");
+  for (userdb_field = ctx->userdb_fields; *userdb_field != NULL; userdb_field++) {
+    const char *value = mail_user_plugin_getenv(user, *userdb_field);
+    if (value != NULL) {
+      if (i++)
+        str_append(ctx->userdb_json, ",\"");
+      else
+        str_append(ctx->userdb_json, "\"");
+      json_append_escaped(ctx->userdb_json, *userdb_field);
+      str_append(ctx->userdb_json, "\":\"");
+      json_append_escaped(ctx->userdb_json, value);
+      str_append(ctx->userdb_json, "\"");
+    }
+  }
+  str_append(ctx->userdb_json, "},");
+
+  if (i == 0) {
+    i_free(ctx->userdb_json);
+    ctx->userdb_json = NULL;
+  }
 
   tmp = hash_table_lookup(config->config, (const char *)"send_flags");
   ctx->render_ctx.send_flags = (tmp == NULL || strcasecmp(tmp, "on") == 0);
@@ -540,6 +564,9 @@ static void push_notification_driver_kafka_deinit(struct push_notification_drive
   if (ctx->userdb_fields != NULL) {
     p_strsplit_free(ctx->pool, ctx->userdb_fields);
     ctx->userdb_fields = NULL;
+  }
+  if (ctx->userdb_json != NULL) {
+    i_free(ctx->userdb_json);
   }
 }
 

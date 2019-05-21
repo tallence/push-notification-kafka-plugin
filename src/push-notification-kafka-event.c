@@ -34,7 +34,6 @@
 #include "push-notification-kafka-plugin.h"
 #include "push-notification-kafka-driver.h"
 
-
 bool str_starts_with(const char *str, const char *prefix) {
   if (str == NULL || prefix == NULL)
     return FALSE;
@@ -121,23 +120,18 @@ bool write_flags(enum mail_flags flags, string_t *str) {
 string_t *write_msg_prefix(struct push_notification_driver_txn *dtxn, const char *event_name,
                            struct push_notification_txn_msg *msg) {
   string_t *str = str_new(dtxn->ptxn->pool, 512);
-  struct push_notification_driver_kafka_context *ctx = (struct push_notification_driver_kafka_context *)dtxn->duser->context;
+  struct push_notification_driver_kafka_context *ctx =
+      (struct push_notification_driver_kafka_context *)dtxn->duser->context;
 
   str_append(str, "{\"user\":\"");
   json_append_escaped(str, dtxn->ptxn->muser->username);
+  str_append(str, "\",");
 
-  char *const *userdb_field;
-  for (userdb_field = ctx->userdb_fields; *userdb_field != NULL; userdb_field++) {
-    const char *value = mail_user_plugin_getenv(dtxn->ptxn->muser, *userdb_field);
-    if (value != NULL) {
-      str_append(str, "\",\"");
-      json_append_escaped(str, *userdb_field);
-      str_append(str, "\":\"");
-      json_append_escaped(str, value);
-    }
+  if (ctx->userdb_json != NULL) {
+    str_append(str, str_c(ctx->userdb_json));
   }
 
-  str_append(str, "\",\"mailbox\":\"");
+  str_append(str, "\"mailbox\":\"");
   json_append_escaped(str, msg->mailbox);
   str_printfa(str, "\",\"event\":\"%s\",\"uidvalidity\":%u,\"uid\":%u", event_name, msg->uid_validity, msg->uid);
   return str;
@@ -255,7 +249,7 @@ string_t *write_event_messagenew(struct push_notification_driver_txn *dtxn, stru
 
 string_t *write_event_messageappend(struct push_notification_driver_txn *dtxn, struct push_notification_txn_msg *msg,
                                     struct push_notification_txn_event *const *event) {
-  struct push_notification_event_messagenew_data *data = (*event)->data;
+  struct push_notification_event_messageappend_data *data = (*event)->data;
   string_t *str = write_msg_prefix(dtxn, (*event)->event->event->name, msg);
 
   if (data->from != NULL) {
