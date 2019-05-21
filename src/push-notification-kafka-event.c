@@ -255,7 +255,7 @@ string_t *write_event_messagenew(struct push_notification_driver_txn *dtxn, stru
 
 string_t *write_event_messageappend(struct push_notification_driver_txn *dtxn, struct push_notification_txn_msg *msg,
                                     struct push_notification_txn_event *const *event) {
-  struct push_notification_event_messagenew_data *data = (*event)->data;
+  struct push_notification_event_messageappend_data *data = (*event)->data;
   string_t *str = write_msg_prefix(dtxn, (*event)->event->event->name, msg);
 
   if (data->from != NULL) {
