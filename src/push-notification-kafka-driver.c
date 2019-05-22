@@ -316,20 +316,17 @@ static int push_notification_driver_kafka_init(struct push_notification_driver_c
   }
   ctx->events = p_strsplit(pool, events, ",");
 
-  const char *userdb_fields = hash_table_lookup(config->config, (const char *)"userdb");
-  if (userdb_fields == NULL) {
-    userdb_fields = "";
+  const char *userdb_fields_string = hash_table_lookup(config->config, (const char *)"userdb");
+  if (userdb_fields_string == NULL) {
+    userdb_fields_string = "";
   }
-  if (ctx->userdb_fields != NULL) {
-    p_strsplit_free(pool, ctx->userdb_fields);
-  }
-  ctx->userdb_fields = p_strsplit(pool, userdb_fields, ",");
+  char **userdb_fields = p_strsplit(pool, userdb_fields_string, ",");
 
   ctx->userdb_json = str_new(ctx->pool, 1024);
   char *const *userdb_field;
   int i = 0;
   str_append(ctx->userdb_json, "\"userdb\":{");
-  for (userdb_field = ctx->userdb_fields; *userdb_field != NULL; userdb_field++) {
+  for (userdb_field = userdb_fields; *userdb_field != NULL; userdb_field++) {
     const char *value = mail_user_plugin_getenv(user, *userdb_field);
     if (value != NULL) {
       if (i++)
@@ -343,6 +340,7 @@ static int push_notification_driver_kafka_init(struct push_notification_driver_c
     }
   }
   str_append(ctx->userdb_json, "},");
+  p_strsplit_free(ctx->pool, userdb_fields);
 
   if (i == 0) {
     i_free(ctx->userdb_json);
@@ -431,7 +429,7 @@ static int push_notification_driver_kafka_init(struct push_notification_driver_c
                                  "init - topic=%s, brokers=%s, keyword-prefix=%s, send_flags=%d, "
                                  "enabled=%d, events=[%s], userdb=[%s]",
                                  ctx->topic, kafka_global->brokers, ctx->render_ctx.keyword_prefix,
-                                 ctx->render_ctx.send_flags, ctx->enabled, events, userdb_fields);
+                                 ctx->render_ctx.send_flags, ctx->enabled, events, userdb_fields_string);
 
   return 0;
 }
@@ -561,10 +559,6 @@ static void push_notification_driver_kafka_deinit(struct push_notification_drive
     ctx->events = NULL;
   }
 
-  if (ctx->userdb_fields != NULL) {
-    p_strsplit_free(ctx->pool, ctx->userdb_fields);
-    ctx->userdb_fields = NULL;
-  }
   if (ctx->userdb_json != NULL) {
     i_free(ctx->userdb_json);
   }
