@@ -114,6 +114,7 @@ static void test_init_send_deinit_driver(void) {
   int num_messages = 10;
   context.topic = topic;  // will be set to 0 by deinit
   context.rkt = NULL;
+  context.userdb_json = NULL;
 
   kafka_global = init_kafka_global();
   kafka_global->rk = NULL;
@@ -161,6 +162,7 @@ static void test_init_kafka_not_reachable(void) {
   char* topic = "test09";
   context.topic = topic;  // will be set to 0 by deinit
   context.rkt = NULL;
+  context.userdb_json = NULL;
 
   kafka_global = init_kafka_global();
   kafka_global->rk = NULL;

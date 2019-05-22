@@ -128,7 +128,7 @@ string_t *write_msg_prefix(struct push_notification_driver_txn *dtxn, const char
   str_append(str, "\",");
 
   if (ctx->userdb_json != NULL) {
-    str_append(str, str_c(ctx->userdb_json));
+    str_append(str, ctx->userdb_json);
   }
 
   str_append(str, "\"mailbox\":\"");
