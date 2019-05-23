@@ -226,6 +226,7 @@ void push_notification_driver_kafka_deinit_topic(struct push_notification_driver
 
 void push_notification_driver_kafka_send_to_kafka(struct push_notification_driver_kafka_context *ctx, string_t *str,
                                                   const char *username) {
+  i_debug("%ssend_to_kafka", LOG_LABEL);
   push_notification_driver_kafka_init_topic(ctx);
 
   i_assert(str != NULL);
@@ -316,35 +317,36 @@ static int push_notification_driver_kafka_init(struct push_notification_driver_c
   }
   ctx->events = p_strsplit(pool, events, ",");
 
+  ctx->userdb_json = NULL;
   const char *userdb_fields_string = hash_table_lookup(config->config, (const char *)"userdb");
-  if (userdb_fields_string == NULL) {
-    userdb_fields_string = "";
-  }
-  char **userdb_fields = p_strsplit(pool, userdb_fields_string, ",");
+  if (userdb_fields_string != NULL) {
+    char **userdb_fields = p_strsplit(pool, userdb_fields_string, ",");
 
-  ctx->userdb_json = str_new(ctx->pool, 1024);
-  char *const *userdb_field;
-  int i = 0;
-  str_append(ctx->userdb_json, "\"userdb\":{");
-  for (userdb_field = userdb_fields; *userdb_field != NULL; userdb_field++) {
-    const char *value = mail_user_plugin_getenv(user, *userdb_field);
-    if (value != NULL) {
-      if (i++)
-        str_append(ctx->userdb_json, ",\"");
-      else
-        str_append(ctx->userdb_json, "\"");
-      json_append_escaped(ctx->userdb_json, *userdb_field);
-      str_append(ctx->userdb_json, "\":\"");
-      json_append_escaped(ctx->userdb_json, value);
-      str_append(ctx->userdb_json, "\"");
+    string_t *userdb_json = str_new(ctx->pool, 1024);
+    char *const *userdb_field;
+    int i = 0;
+    str_append(userdb_json, "\"userdb\":{");
+    for (userdb_field = userdb_fields; *userdb_field != NULL; userdb_field++) {
+      const char *value = mail_user_plugin_getenv(user, *userdb_field);
+      if (value != NULL) {
+        if (i++)
+          str_append(userdb_json, ",\"");
+        else
+          str_append(userdb_json, "\"");
+        json_append_escaped(userdb_json, *userdb_field);
+        str_append(userdb_json, "\":\"");
+        json_append_escaped(userdb_json, value);
+        str_append(userdb_json, "\"");
+      }
     }
-  }
-  str_append(ctx->userdb_json, "},");
-  p_strsplit_free(ctx->pool, userdb_fields);
+    str_append(userdb_json, "},");
 
-  if (i == 0) {
-    i_free(ctx->userdb_json);
-    ctx->userdb_json = NULL;
+    if (i > 0) {
+      ctx->userdb_json = i_strdup(str_c(userdb_json));
+    }
+
+    p_strsplit_free(ctx->pool, userdb_fields);
+    str_free(&userdb_json);
   }
 
   tmp = hash_table_lookup(config->config, (const char *)"send_flags");
@@ -528,6 +530,7 @@ static void push_notification_driver_kafka_process_msg(struct push_notification_
         str_free(&str);
       }
     }
+    push_notification_driver_debug(LOG_LABEL, user, "process_msg - finished");
   } else {
     push_notification_driver_debug(LOG_LABEL, user, "process_msg - user=%s, mailbox=%s, uid=%u, no eventdata",
                                    user->username, msg->mailbox, msg->uid);
@@ -538,13 +541,23 @@ static void push_notification_driver_kafka_end_txn(struct push_notification_driv
                                                    bool success ATTR_UNUSED) {
   struct mail_user *user = dtxn->ptxn->muser;
 
+  push_notification_driver_debug(LOG_LABEL, user, "end_txn - user=%s", user->username);
+
   mail_user_unref(&user);
 }
 
-static void push_notification_driver_kafka_deinit(struct push_notification_driver_user *duser ATTR_UNUSED) {
+static void push_notification_driver_kafka_deinit(struct push_notification_driver_user *duser) {
   struct push_notification_driver_kafka_context *ctx = duser->context;
 
+#ifdef DEBUG
+  i_debug("%sdeinit: called", LOG_LABEL);
+#endif
+
   push_notification_driver_kafka_deinit_topic(ctx);
+
+#ifdef DEBUG
+  i_debug("%sdeinit: free memory", LOG_LABEL);
+#endif
 
   if (kafka_global != NULL) {
     i_assert(kafka_global->refcount > 0);
@@ -552,19 +565,21 @@ static void push_notification_driver_kafka_deinit(struct push_notification_drive
   }
 
   i_free(ctx->topic);
+  i_free(ctx->userdb_json);
+
   i_free(ctx->render_ctx.keyword_prefix);
 
   if (ctx->events != NULL) {
     p_strsplit_free(ctx->pool, ctx->events);
     ctx->events = NULL;
   }
-
-  if (ctx->userdb_json != NULL) {
-    i_free(ctx->userdb_json);
-  }
 }
 
 static void push_notification_driver_kafka_cleanup(void) {
+#ifdef DEBUG
+  i_debug("%scleanup: called", LOG_LABEL);
+#endif
+
   if ((kafka_global != NULL) && (kafka_global->refcount <= 0)) {
     push_notification_driver_kafka_deinit_global();
 
