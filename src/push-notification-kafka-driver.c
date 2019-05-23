@@ -36,6 +36,8 @@
 
 /* Kafka stuff */
 
+struct push_notification_driver_kafka_global *kafka_global = NULL;
+
 /**
  * @brief Message delivery report callback.
  *
@@ -304,6 +306,7 @@ static int push_notification_driver_kafka_init(struct push_notification_driver_c
     tmp = mail_user_plugin_getenv(user, feature);
     ctx->enabled = (tmp != NULL && strcasecmp(tmp, "on") == 0);
   }
+
   const char *events = hash_table_lookup(config->config, (const char *)"events");
   if (events == NULL) {
     events = DEFAULT_EVENTS;
@@ -312,6 +315,37 @@ static int push_notification_driver_kafka_init(struct push_notification_driver_c
     p_strsplit_free(pool, ctx->events);
   }
   ctx->events = p_strsplit(pool, events, ",");
+
+  const char *userdb_fields_string = hash_table_lookup(config->config, (const char *)"userdb");
+  if (userdb_fields_string == NULL) {
+    userdb_fields_string = "";
+  }
+  char **userdb_fields = p_strsplit(pool, userdb_fields_string, ",");
+
+  ctx->userdb_json = str_new(ctx->pool, 1024);
+  char *const *userdb_field;
+  int i = 0;
+  str_append(ctx->userdb_json, "\"userdb\":{");
+  for (userdb_field = userdb_fields; *userdb_field != NULL; userdb_field++) {
+    const char *value = mail_user_plugin_getenv(user, *userdb_field);
+    if (value != NULL) {
+      if (i++)
+        str_append(ctx->userdb_json, ",\"");
+      else
+        str_append(ctx->userdb_json, "\"");
+      json_append_escaped(ctx->userdb_json, *userdb_field);
+      str_append(ctx->userdb_json, "\":\"");
+      json_append_escaped(ctx->userdb_json, value);
+      str_append(ctx->userdb_json, "\"");
+    }
+  }
+  str_append(ctx->userdb_json, "},");
+  p_strsplit_free(ctx->pool, userdb_fields);
+
+  if (i == 0) {
+    i_free(ctx->userdb_json);
+    ctx->userdb_json = NULL;
+  }
 
   tmp = hash_table_lookup(config->config, (const char *)"send_flags");
   ctx->render_ctx.send_flags = (tmp == NULL || strcasecmp(tmp, "on") == 0);
@@ -393,9 +427,9 @@ static int push_notification_driver_kafka_init(struct push_notification_driver_c
 
   push_notification_driver_debug(LOG_LABEL, user,
                                  "init - topic=%s, brokers=%s, keyword-prefix=%s, send_flags=%d, "
-                                 "enabled=%d, events=[%s]",
+                                 "enabled=%d, events=[%s], userdb=[%s]",
                                  ctx->topic, kafka_global->brokers, ctx->render_ctx.keyword_prefix,
-                                 ctx->render_ctx.send_flags, ctx->enabled, events);
+                                 ctx->render_ctx.send_flags, ctx->enabled, events, userdb_fields_string);
 
   return 0;
 }
@@ -523,6 +557,10 @@ static void push_notification_driver_kafka_deinit(struct push_notification_drive
   if (ctx->events != NULL) {
     p_strsplit_free(ctx->pool, ctx->events);
     ctx->events = NULL;
+  }
+
+  if (ctx->userdb_json != NULL) {
+    i_free(ctx->userdb_json);
   }
 }
 

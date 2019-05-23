@@ -41,3 +41,4 @@ src/push-notification-kafka-plugin.lo
 src/test-kafka-driver
 src/test_kafka_driver-push-notification-kafka-driver.o
 stamp-h1
+/.ptp-sync/
