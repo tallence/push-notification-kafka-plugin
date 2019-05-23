@@ -34,8 +34,6 @@
 #include "push-notification-kafka-event.h"
 #include "push-notification-kafka-driver.h"
 
-#define DEBUG
-
 /* Kafka stuff */
 
 struct push_notification_driver_kafka_global *kafka_global = NULL;
