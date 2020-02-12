@@ -1,9 +1,10 @@
 /* Copyright (c) 2007-2015 Dovecot authors, see the included COPYING file */
-
+#define DEBUG
 #include "lib.h"
 #include "istream-private.h"
 #include "test-common.h"
 
+#include "randgen.h"
 #include <stdio.h>
 
 #include <setjmp.h> /* for fatal tests */
@@ -110,7 +111,7 @@ struct istream *test_istream_create_data(const void *data, size_t size)
 
 	tstream->istream.istream.blocking = FALSE;
 	tstream->istream.istream.seekable = TRUE;
-	i_stream_create(&tstream->istream, NULL, -1);
+	i_stream_create(&tstream->istream, NULL, -1,0);
 	tstream->istream.statbuf.st_size = tstream->max_pos = size;
 	tstream->allow_eof = TRUE;
 	tstream->istream.max_buffer_size = (size_t)-1;
@@ -177,22 +178,24 @@ void test_assert_failed_idx(const char *code, const char *file, unsigned int lin
 	test_success = FALSE;
 }
 
-static void
+/*static void
 test_dump_rand_state(void)
 {
 	static int seen_count = -1;
-	int count = rand_get_seed_count();
+	unsigned int seed;
+	unsigned int count = rand_get_seed_count(&seed);
 	if (count == seen_count)
 		return;
 	seen_count = count;
-	if (count > 0)
+	if (count > 0){
 		printf("test: random seed #%i was %u\n", 
-		       rand_get_seed_count(),
-		       rand_get_last_seed());
+		       seedrand_get_seed_count(),
+		       rand_get_last_seed(&seed));
+	}
 	else
 		printf("test: random seed unknown\n");
 }
-
+*/
 void test_end(void)
 {
 	if (!expecting_fatal)
@@ -201,8 +204,8 @@ void test_end(void)
 		test_assert(test_prefix != NULL);
 
 	test_out("", test_success);
-	if (!test_success)
-		test_dump_rand_state();
+	//if (!test_success)
+//		test_dump_rand_state();
 	i_free_and_null(test_prefix);
 	test_success = FALSE;
 }
@@ -281,7 +284,7 @@ static void ATTR_FORMAT(2, 0)
 test_error_handler(const struct failure_context *ctx,
 		   const char *format, va_list args)
 {
-	test_dump_rand_state();
+//	test_dump_rand_state();
 	default_error_handler(ctx, format, args);
 #ifdef DEBUG
 	if (ctx->type == LOG_TYPE_WARNING &&
