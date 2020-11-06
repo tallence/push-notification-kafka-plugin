@@ -13,6 +13,7 @@
 #include <syslog.h>
 #include <librdkafka/rdkafka.h>
 
+#include "config.h"
 #include "lib.h"
 #include "str.h"
 #include "array.h"

@@ -9,6 +9,8 @@
  * Foundation.  See file COPYING.
  */
 #include <unistd.h>
+
+#include "config.h"
 #include "lib.h"
 #include "str.h"
 #include "push-notification-kafka-event.h"

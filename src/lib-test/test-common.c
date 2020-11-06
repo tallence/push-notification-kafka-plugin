@@ -1,6 +1,8 @@
 /* Copyright (c) 2007-2015 Dovecot authors, see the included COPYING file */
 
+#include "config.h"
 #include "lib.h"
+//#include "rand.h"
 #include "istream-private.h"
 #include "test-common.h"
 
@@ -47,7 +49,7 @@ static ssize_t test_read(struct istream_private *stream)
 	} else {
 		/* copy data to a buffer in somewhat random place. this could
 		   help catch bugs. */
-		new_skip_diff = rand() % 128;
+		new_skip_diff = i_rand() % 128;
 		stream->skip = (stream->skip - tstream->skip_diff) +
 			new_skip_diff;
 		stream->pos = (stream->pos - tstream->skip_diff) +
@@ -110,7 +112,7 @@ struct istream *test_istream_create_data(const void *data, size_t size)
 
 	tstream->istream.istream.blocking = FALSE;
 	tstream->istream.istream.seekable = TRUE;
-	i_stream_create(&tstream->istream, NULL, -1);
+	i_stream_create(&tstream->istream, NULL, -1,0);
 	tstream->istream.statbuf.st_size = tstream->max_pos = size;
 	tstream->allow_eof = TRUE;
 	tstream->istream.max_buffer_size = (size_t)-1;
@@ -177,21 +179,28 @@ void test_assert_failed_idx(const char *code, const char *file, unsigned int lin
 	test_success = FALSE;
 }
 
+#ifdef DEBUG
+#include "randgen.h"
 static void
 test_dump_rand_state(void)
 {
-	static int seen_count = -1;
-	int count = rand_get_seed_count();
-	if (count == seen_count)
+	static int64_t seen_seed = -1;
+	unsigned int seed;
+	if (rand_get_last_seed(&seed) < 0) {
+		if (seen_seed == -1) {
+			printf("test: random sequence not reproduceable, use DOVECOT_SRAND=kiss\n");
+			seen_seed = -2;
+		}
 		return;
-	seen_count = count;
-	if (count > 0)
-		printf("test: random seed #%i was %u\n", 
-		       rand_get_seed_count(),
-		       rand_get_last_seed());
-	else
-		printf("test: random seed unknown\n");
+	}
+	if (seed == seen_seed)
+		return;
+	seen_seed = seed;
+	printf("test: DOVECOT_SRAND random seed was %u\n", seed);
 }
+#else
+static inline void test_dump_rand_state(void) { }
+#endif
 
 void test_end(void)
 {

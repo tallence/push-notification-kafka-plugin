@@ -10,6 +10,7 @@
  */
 
 
+#include "config.h"
 #include "lib.h"
 #include "push-notification-drivers.h"
 #include "push-notification-kafka-plugin.h"

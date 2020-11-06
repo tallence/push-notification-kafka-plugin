@@ -11,6 +11,7 @@
 
 #include <time.h>
 
+#include "config.h"
 #include "lib.h"
 #include "str.h"
 #include "array.h"
