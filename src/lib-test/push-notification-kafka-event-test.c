@@ -8,6 +8,7 @@
  * License version 2.1, as published by the Free Software
  * Foundation.  See file COPYING.
  */
+#include "config.h"
 #include "lib.h"
 #include "test-common.h"
 #include "mail-types.h"
@@ -164,7 +165,9 @@ static void write_msg_prefix_test(void) {
   event.uid = 1;
   event.uid_validity = 2;
   event.mailbox = "INBOX";
+#if ! DOVECOT_PREREQ(2, 3)
   event.seq = 1;
+#endif
 
   string_t *t = write_msg_prefix(&dtxn, "MailboxCreate", &event);
   //  i_info("MSG: %s ", str_c(t));
@@ -195,7 +198,9 @@ static void write_flags_event_test(void) {
   event.uid = 1;
   event.uid_validity = 2;
   event.mailbox = "INBOX";
+#if ! DOVECOT_PREREQ(2, 3)
   event.seq = 1;
+#endif
 
   struct push_notification_driver_kafka_render_context ctx;
   ctx.send_flags = TRUE;
@@ -282,7 +287,9 @@ static void write_event_messagenew_test(void) {
   msg.uid = 1;
   msg.uid_validity = 2;
   msg.mailbox = "INBOX";
+#if ! DOVECOT_PREREQ(2, 3)
   msg.seq = 1;
+#endif
 
   struct push_notification_txn_event event;
   struct push_notification_event_messagenew_data data;
@@ -330,7 +337,9 @@ static void write_event_messageappend_test(void) {
   msg.uid = 1;
   msg.uid_validity = 2;
   msg.mailbox = "INBOX";
+#if ! DOVECOT_PREREQ(2, 3)
   msg.seq = 1;
+#endif
 
   struct push_notification_txn_event event;
   struct push_notification_event_messagenew_data data;
