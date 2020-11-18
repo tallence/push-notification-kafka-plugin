@@ -22,6 +22,7 @@
 #include "push-notification-event-mailboxrename.h"
 #include "push-notification-event-mailboxcreate.h"
 #include "push-notification-event-messagenew.h"
+#include "push-notification-event-messageappend.h"
 #include "push-notification-events.h"
 
 static void test_str_starts_with(void) {
@@ -342,7 +343,7 @@ static void write_event_messageappend_test(void) {
 #endif
 
   struct push_notification_txn_event event;
-  struct push_notification_event_messagenew_data data;
+  struct push_notification_event_messageappend_data data;
 
   data.from = "from@test.com";
   data.to = "to@test.com";
