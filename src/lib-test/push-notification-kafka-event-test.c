@@ -24,6 +24,7 @@
 #include "push-notification-event-messagenew.h"
 #include "push-notification-event-messageappend.h"
 #include "push-notification-events.h"
+#include "push-notification-kafka-driver.h"
 
 static void test_str_starts_with(void) {
   test_begin("unit_test_str_starts_with");
@@ -155,20 +156,26 @@ static void write_msg_prefix_test(void) {
   str_append(test,
              "{\"user\":\"testuser\",\"mailbox\":\"INBOX\",\"event\":\"MailboxCreate\",\"uidvalidity\":2,\"uid\":1");
   struct push_notification_driver_txn dtxn;
+  struct push_notification_driver_user duser;
   struct push_notification_txn ptxn;
   struct mail_user user;
+  struct push_notification_driver_kafka_context context;
+  context.userdb_json = NULL;
+  
   user.username = "testuser";
   ptxn.muser = &user;
   ptxn.pool = pool;
   dtxn.ptxn = &ptxn;
+  duser.context = (void*)&context;
+  
+  dtxn.duser = &duser;
 
   struct push_notification_txn_msg event;
   event.uid = 1;
   event.uid_validity = 2;
   event.mailbox = "INBOX";
-#if ! DOVECOT_PREREQ(2, 3)
-  event.seq = 1;
-#endif
+  array_create(&event.eventdata, pool, sizeof(void *), 1);
+  event.save_idx = 0;
 
   string_t *t = write_msg_prefix(&dtxn, "MailboxCreate", &event);
   //  i_info("MSG: %s ", str_c(t));
@@ -188,6 +195,13 @@ static void write_flags_event_test(void) {
       "\"k:old_keyword\"]}");
 
   struct push_notification_driver_txn dtxn;
+  
+  struct push_notification_driver_user duser;
+  struct push_notification_driver_kafka_context context;
+  context.userdb_json = NULL;
+  duser.context = (void*)&context;
+  dtxn.duser = &duser;
+
   struct push_notification_txn ptxn;
   struct mail_user user;
   user.username = "testuser";
@@ -199,9 +213,6 @@ static void write_flags_event_test(void) {
   event.uid = 1;
   event.uid_validity = 2;
   event.mailbox = "INBOX";
-#if ! DOVECOT_PREREQ(2, 3)
-  event.seq = 1;
-#endif
 
   struct push_notification_driver_kafka_render_context ctx;
   ctx.send_flags = TRUE;
@@ -283,14 +294,18 @@ static void write_event_messagenew_test(void) {
   ptxn.muser = &user;
   ptxn.pool = pool;
   dtxn.ptxn = &ptxn;
+  
+  struct push_notification_driver_user duser;
+  struct push_notification_driver_kafka_context context;
+  context.userdb_json = NULL;
+  duser.context = (void*)&context;
+  dtxn.duser = &duser;
+
 
   struct push_notification_txn_msg msg;
   msg.uid = 1;
   msg.uid_validity = 2;
   msg.mailbox = "INBOX";
-#if ! DOVECOT_PREREQ(2, 3)
-  msg.seq = 1;
-#endif
 
   struct push_notification_txn_event event;
   struct push_notification_event_messagenew_data data;
@@ -334,13 +349,16 @@ static void write_event_messageappend_test(void) {
   ptxn.pool = pool;
   dtxn.ptxn = &ptxn;
 
+  struct push_notification_driver_user duser;
+  struct push_notification_driver_kafka_context context;
+  context.userdb_json = NULL;
+  duser.context = (void*)&context;
+  dtxn.duser = &duser;
+
   struct push_notification_txn_msg msg;
   msg.uid = 1;
   msg.uid_validity = 2;
   msg.mailbox = "INBOX";
-#if ! DOVECOT_PREREQ(2, 3)
-  msg.seq = 1;
-#endif
 
   struct push_notification_txn_event event;
   struct push_notification_event_messageappend_data data;
