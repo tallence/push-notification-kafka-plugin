@@ -26,6 +26,8 @@
 #include "push-notification-events.h"
 #include "push-notification-kafka-driver.h"
 
+#include "push-notification-event-messageappend.h"
+
 static void test_str_starts_with(void) {
   test_begin("unit_test_str_starts_with");
   test_assert(str_starts_with("HALLO WETL", "HAL") == TRUE);
@@ -151,7 +153,7 @@ static void test_write_flags(void) {
 static void write_msg_prefix_test(void) {
   test_begin("unit_test_write_msg_prefix");
   pool_t pool;
-  pool = pool_alloconly_create("auth request handler", 4096);
+  pool = pool_alloconly_create("auth request handler", 1024);
   string_t *test = str_new(pool, 256);
   str_append(test,
              "{\"user\":\"testuser\",\"mailbox\":\"INBOX\",\"event\":\"MailboxCreate\",\"uidvalidity\":2,\"uid\":1");
@@ -170,6 +172,10 @@ static void write_msg_prefix_test(void) {
   
   dtxn.duser = &duser;
 
+
+  dtxn.ptxn = &ptxn;
+  dtxn.duser = &duser;
+  
   struct push_notification_txn_msg event;
   event.uid = 1;
   event.uid_validity = 2;
@@ -204,10 +210,17 @@ static void write_flags_event_test(void) {
 
   struct push_notification_txn ptxn;
   struct mail_user user;
+  struct push_notification_driver_kafka_context kafka_context;
+
   user.username = "testuser";
   ptxn.muser = &user;
   ptxn.pool = pool;
+  kafka_context.userdb_json = NULL;
+
+  duser.context = &kafka_context;
+
   dtxn.ptxn = &ptxn;
+  dtxn.duser = &duser;
 
   struct push_notification_txn_msg event;
   event.uid = 1;
@@ -287,12 +300,20 @@ static void write_event_messagenew_test(void) {
              "{\"user\":\"testuser\",\"mailbox\":\"INBOX\",\"event\":\"MessageNew\",\"uidvalidity\":2,\"uid\":1,"
              "\"date\":\"2018-08-30T14:02:03+00:00\",\"from\":\"from@test.com\",\"snippet\":\"short "
              "snippet.....\",\"subject\":\"test subject\",\"to\":\"to@test.com\"}");
+  
   struct push_notification_driver_txn dtxn;
+  struct push_notification_driver_user duser;
   struct push_notification_txn ptxn;
   struct mail_user user;
+  struct push_notification_driver_kafka_context kafka_context;
+
   user.username = "testuser";
   ptxn.muser = &user;
   ptxn.pool = pool;
+  kafka_context.userdb_json = NULL;
+
+  duser.context = &kafka_context;
+
   dtxn.ptxn = &ptxn;
   
   struct push_notification_driver_user duser;
@@ -300,7 +321,6 @@ static void write_event_messagenew_test(void) {
   context.userdb_json = NULL;
   duser.context = (void*)&context;
   dtxn.duser = &duser;
-
 
   struct push_notification_txn_msg msg;
   msg.uid = 1;
@@ -342,12 +362,20 @@ static void write_event_messageappend_test(void) {
              "\"from\":\"from@test.com\",\"snippet\":\"short "
              "snippet.....\",\"subject\":\"test subject\",\"to\":\"to@test.com\"}");
   struct push_notification_driver_txn dtxn;
+  struct push_notification_driver_user duser;
   struct push_notification_txn ptxn;
   struct mail_user user;
+  struct push_notification_driver_kafka_context kafka_context;
+
   user.username = "testuser";
   ptxn.muser = &user;
   ptxn.pool = pool;
+  kafka_context.userdb_json = NULL;
+
+  duser.context = &kafka_context;
+
   dtxn.ptxn = &ptxn;
+  dtxn.duser = &duser;
 
   struct push_notification_driver_user duser;
   struct push_notification_driver_kafka_context context;
@@ -370,14 +398,16 @@ static void write_event_messageappend_test(void) {
 
   event.data = &data;
   struct push_notification_event_config event_cfg;
-  struct push_notification_event notify_event = {.name = push_notification_event_messageappend.name};
+  const struct push_notification_event notify_event = {.name = push_notification_event_messageappend.name};
 
   event_cfg.event = &notify_event;
   event.event = &event_cfg;
   struct push_notification_txn_event *const ev = &event;
 
   string_t *t = write_event_messageappend(&dtxn, &msg, &ev);
-  // i_info("MSG: %s ", str_c(t));
+  i_info("MSG: %s ", str_c(t));
+  i_info("MSG: %s ", str_c(test));
+
   test_assert(str_equals(t, test));
 
   pool_unref(&pool);
